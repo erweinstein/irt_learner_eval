@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18 and 19 on 12 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-20 on 12 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -78,4 +78,18 @@
     seed; R/02d_check_meps_splits.R regenerates every stored MEPS-based instance and checks it against its own
     split (output/meps_split_check.csv). In the 19-learner run, 12 instances drawn before the fix were set aside
     and rerun, and every learner is now run on the plasmode instances as on the real ones. The 14-learner results
-    in the Doc have not been recomputed with this fix by themselves; the 19-learner refit replaces them.
+    in the Doc have not been recomputed with this fix by themselves; the 19-learner refit replaces them. A check of
+    the size of the effect, with the multilevel Rasch model of item 12 (14 learners): the learner-by-condition SD
+    is 2.00 logits on the original responses, 1.51 with the MEPS-based conditions left out, and 1.66 on the interim
+    merged responses (14 learners; 6 MEPS-based instances still to rerun); the learner-by-family SD 2.36, 2.21 and
+    2.06. So the duplication inflated both, but both stay larger than the SD of the 14 learners' abilities in the
+    Rasch model without the interaction terms (1.51 on the original responses, 1.50 on the interim ones), the
+    spread item 12 compares them with. (With the interaction terms in the model the learners' fixed effects
+    spread more: SD 3.15 and 2.82.)
+20. **LightGBM and CatBoost run at their package defaults, untuned** (LightGBM 100 rounds at learning rate 0.1 with
+    31 leaves; CatBoost 1,000 rounds), like xgb_default. In the interim 19-learner fit they rank with xgb_default,
+    knn and cart, not with xgb_tuned: they pass 10% and 27% of the accuracy criteria and 27% and 10% of the
+    calibration criteria (xgb_tuned 55% and 76%). The failures look like overfitting at 500-2,000 training rows:
+    the median calibration slope is 0.52 for LightGBM and 0.70 for CatBoost, against 0.98 for xgb_tuned and 1.02
+    for BART. TabArena's standings for both use tuning (and ensembling), so these results are about the defaults,
+    not the methods; a tuned version, as for xgboost, would be the fairer comparison and has not been run.
