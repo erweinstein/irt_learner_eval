@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18 and 19 on 12 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -58,9 +58,24 @@
     responses are missing by design elsewhere (about a third of the prediction task-items); (c) real-data
     accuracy is now judged against the best of the 17 learners run on every instance, so the original 14's
     real-data responses can change where a new learner did best. The original learners' predictions are
-    reproduced exactly (each learner's seed is now tied to its place in the full list; checked on a real
-    instance). At 2,000 training rows and 71 predictors (the larger real-data tasks) TabPFN took 20 minutes and
-    3.1 GB for one fit, and the session's memory limit is 5.8 GB: 9 real-data runs and 2 simulated ones (3,000
-    training rows) were killed for lack of memory, without an error message, and rerun. TabPFN now predicts the
+    reproduced exactly when the data split is the same (each learner's seed is now tied to its place in
+    the full list; on the 38 real-data instances outside the MEPS problem of item 19 that have a calibration
+    criterion, their calibration scores are identical). At 2,000 training rows and 71 predictors (the larger
+    real-data tasks) TabPFN took 20 minutes and 3.1 GB for one fit, and the session's memory limit is 5.8 GB:
+    9 real-data runs and 2 simulated ones (3,000 training rows) were killed for lack of memory, without an error
+    message, and rerun. TabPFN now predicts the
     test rows 1,000 at a time (the same predictions to about 1e-6, since each test row attends only to the
     training rows), and the first replicates run one at a time beside a queue of the fast learners.
+19. **The MEPS-based replicates were duplicates in the original run (bug, fixed 12 November).** `load_meps()` set
+    the seed to 1 (for the lasso that defines the plasmode truth) the first time MEPS was loaded in an R process,
+    which overwrote the instance's own seed. The original run forked a fresh process for each instance, so all
+    three replicates of each of the 16 MEPS-based conditions (real c60-c69, plasmode c54-c59) were the same data
+    set: glm, which is deterministic, has identical scores across them, and the other learners differ only through
+    their own seeds. So 48 of the 301 instances were 16 data sets, and the 14-learner results in the Doc count
+    those task-items three times. This probably inflates the learner-by-condition SD (item 12) and the agreement
+    of answers within a condition, and with them the adaptive-testing results (items 13-15); the 10-replicate
+    MELS run did not use the MEPS conditions. The fix saves and restores the random-number state around the
+    seed; R/02d_check_meps_splits.R regenerates every stored MEPS-based instance and checks it against its own
+    split (output/meps_split_check.csv). In the 19-learner run, 12 instances drawn before the fix were set aside
+    and rerun, and every learner is now run on the plasmode instances as on the real ones. The 14-learner results
+    in the Doc have not been recomputed with this fix by themselves; the 19-learner refit replaces them.

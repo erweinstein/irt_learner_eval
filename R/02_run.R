@@ -27,7 +27,9 @@ PLAN <- Sys.getenv("IRT_PLAN", "")
 plan_learners <- function(cond, rep) {
   fast_new <- c("lightgbm", "catboost", "bart")
   slow <- if (rep == 1 && !cond$family %in% c("dml", "procova", "import")) c("realmlp", "tabpfn") else character(0)
-  if (cond$source == "real") c(LEARNERS_ORIGINAL, fast_new, slow) else c(fast_new, slow)
+  # plasmode instances too: before the fix of 12 November in load_meps() their three replicates were the same
+  # data set in the original run, so every learner is rerun on them
+  if (cond$source %in% c("real", "plasmode")) c(LEARNERS_ORIGINAL, fast_new, slow) else c(fast_new, slow)
 }
 # the slow learners are not run on the importance tasks, whose test set is the predictors' permuted copies
 # (11 times the usual test rows); their importance responses are missing by design

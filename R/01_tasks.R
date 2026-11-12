@@ -110,7 +110,12 @@ load_meps <- function() {
   for (v in cat_vars) d[[v]] <- factor(d[[v]])
   X <- model.matrix(~ . - 1, d[, pred], contrasts.arg = lapply(d[, cat_vars], contrasts, contrasts = FALSE))
   meps_env$d <- d; meps_env$X <- X
-  # the plasmode truth: a lasso fit to log spending (linear part) plus a curve in age and an interaction
+  # the plasmode truth: a lasso fit to log spending (linear part) plus a curve in age and an interaction.
+  # Its seed is set here, so the caller's random-number state is saved and restored: without this the first
+  # MEPS instance drawn in each R process got the split that follows seed 1, whatever its own seed (found
+  # 12 November 2026; replicates of the MEPS-based conditions were duplicated)
+  old_seed <- get0(".Random.seed", envir = globalenv(), inherits = FALSE)
+  on.exit(if (is.null(old_seed)) rm(".Random.seed", envir = globalenv()) else assign(".Random.seed", old_seed, envir = globalenv()))
   set.seed(1); fl <- cv.glmnet(X, d$log_cost, alpha = 1, nfolds = 5)
   lin <- as.numeric(predict(fl, X, s = "lambda.1se"))
   a <- (d$age - 50) / 15; ph <- as.numeric(scale(d$pcs))
