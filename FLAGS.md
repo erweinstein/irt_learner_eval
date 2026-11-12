@@ -59,4 +59,8 @@
     accuracy is now judged against the best of the 17 learners run on every instance, so the original 14's
     real-data responses can change where a new learner did best. The original learners' predictions are
     reproduced exactly (each learner's seed is now tied to its place in the full list; checked on a real
-    instance).
+    instance). At 2,000 training rows and 71 predictors (the larger real-data tasks) TabPFN took 20 minutes and
+    3.1 GB for one fit, and the session's memory limit is 5.8 GB: 9 real-data runs and 2 simulated ones (3,000
+    training rows) were killed for lack of memory, without an error message, and rerun. TabPFN now predicts the
+    test rows 1,000 at a time (the same predictions to about 1e-6, since each test row attends only to the
+    training rows), and the first replicates run one at a time beside a queue of the fast learners.

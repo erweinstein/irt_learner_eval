@@ -156,6 +156,9 @@ if (sys.nframe() == 0) {
   todo <- todo[!file.exists(sprintf("%s/c%03d_r%d.rds", IDIR, todo$i, todo$rep)), ]
   # IRT_REP_ONLY = "1" runs only the first replicate; "2+" only the others (to split long runs into chunks)
   ro <- Sys.getenv("IRT_REP_ONLY", ""); if (ro == "1") todo <- todo[todo$rep == 1, ]; if (ro == "2+") todo <- todo[todo$rep > 1, ]
+  # IRT_N_MIN / IRT_N_MAX restrict to conditions by training size (to run the most memory-hungry ones on one core)
+  nn <- C$n[match(todo$i, C$cond)]
+  todo <- todo[nn >= as.numeric(Sys.getenv("IRT_N_MIN", "0")) & nn <= as.numeric(Sys.getenv("IRT_N_MAX", "Inf")), ]
   message(nrow(todo), " instances to run, ", format(Sys.time()))
   invisible(mclapply(seq_len(nrow(todo)), function(k) { r <- try(run_instance(todo$i[k], todo$rep[k]))
     if (inherits(r, "try-error")) message("FAILED ", todo$i[k], "/", todo$rep[k], ": ", r)

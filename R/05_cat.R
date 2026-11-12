@@ -1,17 +1,18 @@
 # 05_cat.R -- Computerized adaptive testing of a new learner (Bock and Gibbons 2021, ch. 8), with
-# leave-one-learner-out calibration: the task bank is calibrated on 13 learners, and the 14th is then tested
-# adaptively, as a new pipeline would be, using its actual answers.
+# leave-one-learner-out calibration: the task bank is calibrated on all learners but one, and that one is then
+# tested adaptively, as a new pipeline would be, using its actual answers (13 and 1 of the original 14 learners).
 # Calibration: the multilevel Rasch model of 03_irt.R (learners as examinees),
 #   logit P(Y_li = 1) = theta_l + c_crit(i) + g_family(i) + v_cond(i) + u_inst(i) + r_i,
-# fitted to the 13 learners with glmmTMB; a task-item's easiness e_i is its criterion effect plus the
+# fitted to the calibration learners with glmmTMB; a task-item's easiness e_i is its criterion effect plus the
 # predicted random effects (shrunken toward their family and condition, so every item gets a finite easiness,
-# even one that all 13 passed). Their uncertainty is ignored, as in most operational CAT.
-# Testing: ability prior N(mean, SD) of the 13 calibration learners' abilities; after each answer, the
+# even one that every calibration learner passed). Their uncertainty is ignored, as in most operational CAT.
+# Testing: ability prior N(mean, SD) of the calibration learners' abilities; after each answer, the
 # expected a posteriori (EAP) ability on a grid; the next task-item is the unused one with the most Fisher
 # information at the current EAP (for a Rasch item, p(1 - p): the item whose easiness is nearest -theta),
 # ties broken at random; and a version that takes at most one item per task condition in each round. Compared with the same number of items chosen at random (50 orders), each adaptive rule run 20 times (ties), and with the
 # EAP from every item the learner answered ("full bank", same calibration).
-# Input: output/responses.csv. Output: output/cat_results.csv, output/cat_summary.csv, output/fig_cat.png
+# Input: output/responses.csv (env IRT_RESPONSES). Output, in output/ (env IRT_OUT): cat_results.csv,
+# cat_summary.csv, fig_cat.png
 #
 # Eliot R. Weinstein
 # eliotw@uchicago.edu
@@ -19,12 +20,16 @@
 
 suppressMessages({ library(glmmTMB); library(ggplot2) })
 set.seed(805)
-R <- read.csv("output/responses.csv", stringsAsFactors = FALSE)
+OUT <- Sys.getenv("IRT_OUT", "output"); dir.create(OUT, showWarnings = FALSE)
+R <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses.csv"), stringsAsFactors = FALSE)
 R <- R[is.finite(R$pass), ]
 R$item <- paste(R$inst, R$criterion, sep = ":")
 R$task_family <- ifelse(R$family == "real", paste0("real_", R$type), R$family)
-LEARNERS <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default",
-              "xgb_tuned", "svm", "nnet", "stack")
+# the original 14 in their original order (which, with the seed, fixes the random tie-breaks and orders of the
+# 14-learner results), then any others
+L14 <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default",
+         "xgb_tuned", "svm", "nnet", "stack")
+LEARNERS <- c(intersect(L14, unique(R$learner)), setdiff(unique(R$learner), L14))
 grid <- seq(-8, 12, by = 0.02)
 eap <- function(e, y, mu, s) {
   lp <- dnorm(grid, mu, s, log = TRUE)
@@ -82,7 +87,7 @@ for (lo in LEARNERS) {
   message(lo, " done")
 }
 res <- do.call(rbind, res); res$abs_err <- abs(res$theta - res$theta_full)
-write.csv(res, "output/cat_results.csv", row.names = FALSE)
+write.csv(res, file.path(OUT, "cat_results.csv"), row.names = FALSE)
 # per k and rule: mean absolute error over learners and runs; the share of learners whose error is within
 # 1.96 posterior SDs (is the reported precision honest?); the Spearman correlation with the full-bank
 # ranking, averaged over runs (runs 1-20)
@@ -92,7 +97,7 @@ summ <- do.call(rbind, lapply(split(res, list(res$k, res$rule), drop = TRUE), fu
              mean_psd = mean(x$psd), within_1.96_psd = mean(x$abs_err <= 1.96 * x$psd),
              spearman_vs_full = mean(vapply(split(rr, rr$run), function(z) cor(z$theta, z$theta_full, method = "spearman"), 0))) }))
 summ <- summ[order(summ$k, summ$rule), ]
-write.csv(summ, "output/cat_summary.csv", row.names = FALSE)
+write.csv(summ, file.path(OUT, "cat_summary.csv"), row.names = FALSE)
 print(summ, digits = 3, row.names = FALSE)
 lab <- c(max_info = "adaptive (most informative item)", one_per_condition = "adaptive, one item per condition per round",
          random = "random")
@@ -101,4 +106,4 @@ g <- ggplot(pl, aes(k, abs_err, colour = how)) + geom_line(aes(group = interacti
   stat_summary(fun = mean, geom = "line", linewidth = 1.2) + scale_x_log10(breaks = K) +
   labs(x = "task-items given (log scale)", y = "|ability after k items - full-bank ability| (logits)", colour = NULL) +
   theme_minimal(base_size = 11) + theme(legend.position = "bottom", legend.direction = "vertical")
-ggsave("output/fig_cat.png", g, width = 7, height = 4.5, dpi = 200)
+ggsave(file.path(OUT, "fig_cat.png"), g, width = 7, height = 4.5, dpi = 200)

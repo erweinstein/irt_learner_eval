@@ -7,7 +7,8 @@
 #             no training, the training data are its context; the regressor's mean for non-binary outcomes;
 #             at most 10,000 training rows (a random 10,000 beyond that). One ensemble member (n_estimators = 1;
 #             the package default is 4 for classification and 8 for regression), because on one CPU thread a
-#             single fit and prediction already takes 45-95 seconds at 1,000 training and 5,000 test rows
+#             single fit and prediction already takes 45-95 seconds at 1,000 training and 5,000 test rows (and about
+#             20 minutes at 2,000 training rows and 71 predictors)
 # All run single-threaded on the CPU, seeded.
 #
 # Eliot R. Weinstein
@@ -58,11 +59,16 @@ def fit_predict(name, type_, xtr, ytr, xte, seed=1):
         if xtr.shape[0] > 10000:
             i = rng.choice(xtr.shape[0], 10000, replace=False)
             xtr, ytr = xtr[i], ytr[i]
+        # the test rows are predicted 1,000 at a time: each test row attends only to the training rows, so this
+        # gives the same predictions (to float32 rounding, about 1e-6) at a third of the peak memory (3.1 GB at
+        # 2,000 training rows, 71 predictors and 3,000 test rows, unbatched)
+        batched = lambda f: np.concatenate([np.asarray(f(xte[i:i + 1000]), dtype=float).ravel()
+                                            for i in range(0, xte.shape[0], 1000)])
         if type_ == "binary":
             m = TabPFNClassifier(device="cpu", n_estimators=1, random_state=seed, ignore_pretraining_limits=True)
             m.fit(xtr, ytr.astype(int))
-            return m.predict_proba(xte)[:, 1]
+            return batched(lambda a: m.predict_proba(a)[:, 1])
         m = TabPFNRegressor(device="cpu", n_estimators=1, random_state=seed, ignore_pretraining_limits=True)
         m.fit(xtr, ytr)
-        return np.asarray(m.predict(xte), dtype=float).ravel()
+        return batched(m.predict)
     raise ValueError(name)
