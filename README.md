@@ -58,6 +58,16 @@ Added on 12 November:
   The files directly in `output/` are the original 14-learner results, which count the MEPS-based task-items
   three times.
 
+Added on 13 November:
+
+- **Tuned LightGBM and CatBoost** (`lightgbm_tuned`, `catboost_tuned`; FLAGS.md 20 and 22), run with
+  `PLAN=v21 ./run_v19_queue.sh TAG "||1|0|Inf"` and merged by `R/02f_merge_v21.R`; results with 21 learners
+  in `output/responses_21.csv` and `output/v21/`.
+- **Threshold sensitivity** (`R/08_threshold_sensitivity.R`; FLAGS.md 1): results in
+  `output/v19/threshold_sensitivity_*.csv`.
+- **A check of TabPFN's low means on spending and counts** (`R/07_tabpfn_check.R`, `py/tabpfn_check.py`,
+  `run_tabpfn_check.sh`; FLAGS.md 21): results in `output/tabpfn_check.csv`.
+
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
 `py/learners_py.py`) and `R/01_tasks.R` the 95 task conditions. The MEPS tasks
@@ -72,6 +82,7 @@ glmmTMB, mirt (needs Deriv; on R 4.3 install Deriv 4.1.6 from the CRAN archive),
 |---|---|
 | `output/responses.csv` | one row per instance x criterion x learner: score and pass (6,223 rows) |
 | `output/responses_19.csv`, `output/v19/` | the same for all 19 learners (7,904 rows), and the final results from them |
+| `output/responses_21.csv`, `output/v21/` | the same with the two tuned learners added (8,842 rows) |
 | `output/irt_prop_correct*.csv` | proportion of criteria met, overall and by task family |
 | `output/irt_A_ability.csv`, `irt_A_profile.csv` | multilevel Rasch abilities; learner-by-family deviations |
 | `output/irt_B_items_2pl.csv` | flipped 2PL slopes and difficulties (and `_without_ridge_enet`) |

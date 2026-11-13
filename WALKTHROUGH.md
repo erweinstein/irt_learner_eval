@@ -94,7 +94,7 @@ Every learner has the same interface, `fit_predict(name, type, xtr, ytr, xte)`, 
 |---|---|
 | Linear | OLS / logistic / Poisson regression; a loss-matched GLM (quasi-Poisson for spending, negative binomial for counts); lasso, ridge and elastic net (glmnet); a GAM (mgcv) |
 | Local | k nearest neighbours; a radial support vector machine; a one-layer neural network; RealMLP (a modern multilayer perceptron, run in Python) |
-| Trees | a pruned tree; a random forest; xgboost with defaults and tuned; LightGBM; CatBoost; BART |
+| Trees | a pruned tree; a random forest; xgboost, LightGBM and CatBoost, each with defaults and tuned; BART |
 | Other | a stack (non-negative weights on five learners' out-of-fold predictions); TabPFN v2 (a pretrained transformer that predicts in context) |
 
 The first 14 come from the MEPS walkthrough. The last five were added from recent benchmarks of learners
@@ -106,6 +106,11 @@ night, they answer only the first draw of each prediction task, so their other r
 design, and TabPFN uses one ensemble member instead of its default four to eight. Item response models
 handle responses that are missing by design without trouble, but these two learners' estimates are less
 precise.
+
+Tuned LightGBM and CatBoost were added on 13 November, tuned the way xgb_tuned is (not by a search):
+learning rate 0.05, small trees, and the number of rounds by 5-fold cross-validated early stopping. The
+tuned CatBoost also starts boosting from the training mean, which CatBoost's defaults do not do for log
+loss, Poisson or Tweedie (`FLAGS.md` items 20 and 22).
 
 ## 4. Running and scoring (`R/02_run.R`, `R/02b_combine.R`)
 
@@ -145,6 +150,13 @@ set (`FLAGS.md` item 19). The seed is now saved and restored around it. Two scri
 real-data and plasmode instances every learner was rerun, so it takes the rerun; on the simulated ones it
 adds the new learners' answers to the original 14's. `R/02b_combine.R`, with `IRT_INSTANCE_DIR` and
 `IRT_RESPONSES` set, writes `output/responses_19.csv`.
+
+`PLAN=v21 ./run_v19_queue.sh TAG "||1|0|Inf"` adds the tuned LightGBM and CatBoost (about 20 minutes on
+one core). Real-data accuracy is judged against the best learner on the split, and only the difference
+is stored, so on the real-data instances the 17 learners run on every instance are rerun to rebuild that
+reference. They reproduce their stored scores exactly, and `R/02f_merge_v21.R` checks this as it merges.
+The reference stays the best of those 17, so adding the tuned learners changes no other learner's
+answers. The results with 21 learners are in `output/responses_21.csv` and `output/v21/`.
 
 `output/responses.csv` has one row per learner and task-item:
 
@@ -212,8 +224,11 @@ proportion of criteria met):
 | rf | 0.74 (0.64) | 0.54 | | | |
 
 The SEs are large, about 0.65 logits, so learners close together in the table are not reliably ordered;
-the clear contrast is between the upper group (the stack down to glm) and the six from CatBoost down. LightGBM and CatBoost run at their package defaults and rank with the untuned xgboost, not the tuned
-one (`FLAGS.md` item 20). glm_matched answers only spending and count tasks, hence its larger SE.
+the clear contrast is between the upper group (the stack down to glm) and the six from CatBoost down.
+LightGBM and CatBoost run at their package defaults and rank with the untuned xgboost, not the tuned one
+(`FLAGS.md` item 20). Tuned, they join the upper group: in the 21-learner fit (`output/v21/`) the tuned
+CatBoost's ability is 1.36 and the tuned LightGBM's 0.97, beside tuned xgboost's 1.21. glm_matched answers
+only spending and count tasks, hence its larger SE.
 
 ## 6. Flipped: learners as items (`R/03_irt.R`, part B)
 
@@ -344,8 +359,12 @@ adaptively with the calibration from the others (section 7).
   the K-CAT, over 10,000 for CAT-Autism); here there are 19. Loadings and slopes are poorly determined, and
   absolute fit is poor (M2 RMSEA about 0.2).
 - **The criteria are thresholds**, and a learner's configuration, not its algorithm, is what is scored.
+  `R/08_threshold_sensitivity.R` recomputes pass/fail under stricter and more lenient thresholds and refits
+  the model: the stack stays first and the last seven stay last, but the order within the upper group
+  changes (Spearman 0.86–1.00 with the baseline; `FLAGS.md` item 1).
 - **Relative criteria.** Real-data accuracy is relative to the best learner on the split, so adding a
-  learner can change other learners' answers.
+  learner to the reference can change other learners' answers (the tuned learners of 13 November were
+  kept out of it for that reason).
 - **Local dependence is large.** Treating the 469 task-items as independent overstates the precision of
   any ability estimate; model the nesting.
 - **Location-scale models.** A mixed-effects location-scale model of draw-to-draw variability (Hedeker,
