@@ -1,8 +1,19 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22 on 13 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
-   10-15%. The graded version agrees, but a threshold sensitivity analysis has not been run.
+   10-15%. The graded version agrees. A threshold sensitivity analysis (R/08_threshold_sensitivity.R, 13
+   November, 19 learners; output/v19/threshold_sensitivity_*.csv) recomputes pass/fail from the stored scores
+   under stricter and more lenient thresholds, one criterion at a time and all together, and refits the
+   multilevel Rasch model with the learner-by-family term. The stack is first in every scenario, and the bottom
+   seven (nnet, CatBoost and LightGBM at their defaults, svm, cart, knn, xgb_default) stay in the last seven places, but the order
+   within the upper group is fragile: Spearman correlation with the baseline abilities 0.86-1.00, up to 6 places'
+   change. Accuracy thresholds matter most: with the lenient ones (signal R^2 0.7, AUC excess 80%, twice the
+   real-data tolerance) tuned xgboost moves from 8th to 2nd and TabPFN from 4th to 10th; with the strict ones
+   (0.9, 95%, half the tolerance) the elastic net and lasso move to 2nd and 3rd. One limit: for calibration on
+   yes/no outcomes the ratio of predicted to training mean is not stored, so that slope band could only be
+   narrowed. No importance response had two of the three signal predictors in its top three, so the lenient
+   importance threshold changed nothing.
 2. **Real-data accuracy is relative to the best learner on the split**, which makes responses within a
    task-item dependent; the real-vs-simulated DIF may partly reflect this difference in criteria.
 3. **Near-duplicate learners** (lasso, ridge, enet agree on 90-95% of task-items) inflate their slopes
@@ -102,8 +113,13 @@
     for xgb_tuned and 1.04 for BART. (The interim figures reported earlier on 12 November, 0.52, 0.70, 0.98 and
     1.02, were wrong: they took the median over the yes/no slopes together with the ratios of predicted to
     training mean on counts and spending, which are stored in the same column.) TabArena's standings for both use
-    tuning (and ensembling), so these results are about the defaults, not the methods; a tuned version, as for
-    xgboost, would be the fairer comparison and has not been run.
+    tuning (and ensembling), so these results are about the defaults, not the methods. Tuned versions were run on
+    13 November (item 22) and rank with xgb_tuned. Part of the default CatBoost's failures has a specific cause:
+    CatBoost 1.2 does not start boosting from the training mean for log loss (boost_from_average is off by
+    default) or for Poisson and Tweedie (where it is not allowed), so its predictions start from a logit of 0 or a
+    mean of exp(0) = 1, and 1,000 rounds at its automatic learning rate do not get back: its predicted mean is a
+    median 0.57 of the training mean on spending and 0.80 on counts, and it passes 7% of the yes/no calibration
+    criteria.
 21. **TabPFN underpredicts the mean on spending and counts.** On the 26 count and spending calibration items its
     predicted mean is a median 0.76 (spending) and 0.84 (counts) of the training mean, against 0.96-1.08 for
     BART, glm, lasso and RealMLP (xgb_tuned 0.85 on spending; item 10). So it meets the calibration-in-the-large
@@ -111,3 +127,17 @@
     only to the stack's (73% against 76%). A possible cause, not checked: TabPFN's regressor predicts the mean of a binned
     distribution over a bounded range of the target, which may cut off long right tails, and here it uses one
     ensemble member (item 18). A log transform of the outcome, or the default ensemble, might change this.
+22. **Tuned LightGBM and CatBoost (13 November; `IRT_PLAN=v21`, output/responses_21.csv, output/v21/).** Tuned as
+    xgb_tuned is, not by a search: learning rate 0.05, small trees (LightGBM 8 leaves with 80% row and column
+    subsampling; CatBoost depth 4), the number of rounds (at most 1,000) by 5-fold cross-validated early
+    stopping, and, for CatBoost, boosting from the training mean (a constant baseline of log(mean y) for Poisson
+    and Tweedie). They meet 61% (LightGBM) and 65% (CatBoost) of the criteria, against 24% and 28% at the
+    defaults and 65% for xgb_tuned; in the 21-learner multilevel Rasch fit their abilities are 0.97 and 1.36
+    (xgb_tuned 1.21; the defaults -2.93 and -1.82). The real-data accuracy reference stays the best of the 17
+    learners of the v19 run, so no other learner's responses change; the tuned learners beat that reference on
+    4 (LightGBM) and 12 (CatBoost) of the 78 real-data instances, by at most 0.026. On the real-data instances
+    the 17 were rerun to rebuild the reference, and every one of their scores agrees with the stored one
+    (R/02f_merge_v21.R). With 21 learners the earlier conclusions hold (the stack first, Spearman 0.94 between
+    abilities and proportions met; three factors best by BIC, with the tuned boosters loading on the flexible
+    factor at 0.85-0.89), except that bifactor adaptive selection is no better than random at 10 items (mean
+    error 0.98 logits against 0.88); from 20 items on it is better (0.20 against 0.33 at 80).

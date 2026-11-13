@@ -31,9 +31,17 @@ plan_learners <- function(cond, rep) {
   # data set in the original run, so every learner is rerun on them
   if (cond$source %in% c("real", "plasmode")) c(LEARNERS_ORIGINAL, fast_new, slow) else c(fast_new, slow)
 }
+# IRT_PLAN = "v21" (13 November 2026): tuned LightGBM and CatBoost on every instance (output/instances_v21). The
+# real-data accuracy reference stays the best of the 17 learners of the v19 run (REF_OUT below), so adding them
+# changes no other learner's responses; on real-data instances those 17 are rerun to rebuild the reference (they
+# reproduce their v19 predictions; R/02f_merge_v21.R checks that their scores agree)
+TUNED_NEW <- c("lightgbm_tuned", "catboost_tuned")
+plan_learners21 <- function(cond, rep)
+  if (cond$source == "real") c(setdiff(LEARNERS_ALL[1:19], c("realmlp", "tabpfn")), TUNED_NEW) else TUNED_NEW
 # the slow learners are not run on the importance tasks, whose test set is the predictors' permuted copies
 # (11 times the usual test rows); their importance responses are missing by design
 SLOW <- c("realmlp", "tabpfn")
+REF_OUT <- c(SLOW, "lightgbm_tuned", "catboost_tuned")   # not in the real-data accuracy reference
 reps_for <- function(f) as.integer(Sys.getenv("IRT_REPS", c(procova = "4", dml = "5")[f] %||% "3"))
 `%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
 
@@ -57,7 +65,7 @@ score_pred <- function(inst, P, cond) {
     tol <- if (type == "cost") 0.02 else 0.01
     # the reference is the best learner among those run on every real-data instance (the slow learners, run on
     # the first replicate only, are scored against it but do not set it)
-    best <- max(m[!names(m) %in% SLOW], na.rm = TRUE)
+    best <- max(m[!names(m) %in% REF_OUT], na.rm = TRUE)
     out$acc <- data.frame(learner = names(P), score = m - best, pass = as.integer(m >= best - tol))
   }
   # calibration in the large is judged against the training mean, so that it reflects the learner (shrinkage,
@@ -129,6 +137,7 @@ run_instance <- function(i, rep) {
   if (file.exists(f)) return(invisible(NULL))
   cond <- CL[[i]]; seed <- 100000 + 1000 * i + rep; set.seed(seed); t0 <- Sys.time()
   if (PLAN == "v19") LEARNERS <<- plan_learners(cond, rep)
+  if (PLAN == "v21") LEARNERS <<- plan_learners21(cond, rep)
   res <- if (cond$family == "procova") procova_instance(cond, seed) else if (cond$family == "dml") dml_instance(cond, seed) else {
     inst <- switch(cond$source, sim = sim_instance(cond), plasmode = plasmode_instance(cond), real = real_instance(cond))
     if (cond$family == "import") {               # importance: predict the test data and its column-permuted copies

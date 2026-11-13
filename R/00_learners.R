@@ -27,6 +27,10 @@
 #   lightgbm     LightGBM with its defaults (100 rounds, 31 leaves, learning rate 0.1), loss matched to the
 #                outcome (binary, Poisson, Tweedie 1.5, squared error)
 #   catboost     CatBoost with its defaults (1,000 rounds), loss matched (py/learners_py.py)
+#   lightgbm_tuned, catboost_tuned (added 13 November 2026)  tuned as xgb_tuned is: learning rate 0.05, small trees
+#                (LightGBM 8 leaves with 80% row and column subsampling; CatBoost depth 4), the number of rounds (at
+#                most 1,000) by 5-fold cross-validated early stopping (30 rounds); loss matched. Not a search over
+#                hyperparameters
 #   bart         dbarts::bart2, 200 trees, 2 chains, defaults otherwise (probit BART for binary); the posterior
 #                mean of E[y | x]
 #   realmlp      RealMLP with its tuned defaults (pytabkit), a modern multilayer perceptron (py/learners_py.py)
@@ -43,9 +47,10 @@ suppressMessages({
 })
 
 LEARNERS <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default",
-              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn")
+              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn",
+              "lightgbm_tuned", "catboost_tuned")
 LEARNERS_ORIGINAL <- LEARNERS[1:14]
-PY_LEARNERS <- c("catboost", "realmlp", "tabpfn")
+PY_LEARNERS <- c("catboost", "realmlp", "tabpfn", "catboost_tuned")
 .py <- NULL
 py_fit <- function(name, type, xtr, ytr, xte) {
   if (is.null(.py)) { Sys.setenv(RETICULATE_PYTHON = Sys.getenv("RETICULATE_PYTHON", "/usr/local/bin/python3"))
@@ -146,7 +151,18 @@ fit_predict <- function(name, type, xtr, ytr, xte) {
                                lightgbm::lgb.Dataset(xtr, label = ytr), nrounds = 100)
       predict(f, xte)
     },
-    catboost = , realmlp = , tabpfn = py_fit(name, type, xtr, ytr, xte),
+    lightgbm_tuned = {
+      obj <- switch(type, binary = "binary", count = "poisson", cost = "tweedie", "regression")
+      pr <- list(objective = obj, learning_rate = 0.05, num_leaves = 8, feature_fraction = 0.8, bagging_fraction = 0.8,
+                 bagging_freq = 1, num_threads = 1, verbosity = -1, seed = sample.int(1e6, 1))
+      if (type == "cost") pr$tweedie_variance_power <- 1.5
+      dl <- lightgbm::lgb.Dataset(xtr, label = ytr)
+      cv <- lightgbm::lgb.cv(pr, dl, nrounds = 1000, nfold = 5, early_stopping_rounds = 30, verbose = -1,
+                             stratified = (type == "binary"))
+      f <- lightgbm::lgb.train(pr, lightgbm::lgb.Dataset(xtr, label = ytr), nrounds = max(10, cv$best_iter))
+      predict(f, xte)
+    },
+    catboost = , realmlp = , tabpfn = , catboost_tuned = py_fit(name, type, xtr, ytr, xte),
     bart = {
       if (type == "binary") {
         f <- dbarts::bart2(xtr, ytr, xte, n.chains = 2, n.threads = 1, verbose = FALSE, keepTrees = FALSE)

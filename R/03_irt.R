@@ -30,12 +30,13 @@ OUT <- Sys.getenv("IRT_OUT", "output"); dir.create(OUT, showWarnings = FALSE, re
 R <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses.csv"), stringsAsFactors = FALSE)
 R$item <- paste(R$inst, R$criterion, sep = ":")
 LEARNERS <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default",
-              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn")
+              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn",
+              "lightgbm_tuned", "catboost_tuned")
 LEARNERS <- LEARNERS[LEARNERS %in% unique(R$learner)]
 fam_of <- c(glm = "linear", glm_matched = "linear", lasso = "linear", ridge = "linear", enet = "linear", gam = "linear",
             knn = "local", svm = "local", nnet = "local", cart = "trees", rf = "trees", xgb_default = "trees",
             xgb_tuned = "trees", stack = "ensemble", lightgbm = "trees", catboost = "trees", bart = "trees",
-            realmlp = "local", tabpfn = "pretrained")
+            realmlp = "local", tabpfn = "pretrained", lightgbm_tuned = "trees", catboost_tuned = "trees")
 R$learner <- factor(R$learner, levels = LEARNERS)
 R$task_family <- ifelse(R$family == "real", paste0("real_", R$type), R$family)
 out <- list()

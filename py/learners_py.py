@@ -1,6 +1,8 @@
 # learners_py.py -- The Python learners of the IRT evaluation, called from R/00_learners.R through reticulate.
 #   catboost  CatBoost with its defaults (1,000 rounds, learning rate set automatically), loss matched to the
 #             outcome (log loss, Poisson, Tweedie 1.5, squared error)
+#   catboost_tuned  CatBoost tuned as xgb_tuned is: learning rate 0.05, depth 4, rounds (at most 1,000) by 5-fold
+#             cross-validated early stopping (added 13 November 2026)
 #   realmlp   RealMLP with its tuned defaults (Holzmueller, Grinsztajn and Steinwart 2024; pytabkit's
 #             RealMLP_TD), squared error for every non-binary outcome
 #   tabpfn    TabPFN v2 (Hollmann et al. 2025), a pretrained transformer that predicts by in-context learning:
@@ -39,6 +41,37 @@ def fit_predict(name, type_, xtr, ytr, xte, seed=1):
                                  allow_writing_files=False)
         m.fit(xtr, ytr)
         p = m.predict(xte, prediction_type="Exponent") if type_ in ("count", "cost") else m.predict(xte)
+        return np.asarray(p, dtype=float)
+    if name == "catboost_tuned":
+        # the same tuning as xgb_tuned: a smaller learning rate (0.05) and shallower trees (depth 4), with the
+        # number of rounds (at most 1,000) chosen by 5-fold cross-validated early stopping (30 rounds). Unlike the
+        # defaults, the boosting starts from the training mean (as xgboost and LightGBM do): boost_from_average for
+        # log loss and squared error, and a constant baseline of log(mean y) for Poisson and Tweedie, for which
+        # CatBoost 1.2 does not allow boost_from_average (from 0, on the log scale, 1,000 small steps can fall well
+        # short of the mean of spending in dollars)
+        import catboost as cb
+        loss = {"binary": "Logloss", "count": "Poisson", "cost": "Tweedie:variance_power=1.5"}.get(type_, "RMSE")
+        par = {"loss_function": loss, "learning_rate": 0.05, "depth": 4, "random_seed": seed, "thread_count": 1,
+               "logging_level": "Silent", "allow_writing_files": False}
+        lab = ytr.astype(int) if type_ == "binary" else ytr
+        logscale = type_ in ("count", "cost")
+        if logscale:
+            b0 = float(np.log(max(np.mean(ytr), 1e-8)))
+            ptr, pte = cb.Pool(xtr, lab, baseline=np.full(len(lab), b0)), cb.Pool(xte, baseline=np.full(len(xte), b0))
+        else:
+            par["boost_from_average"] = True
+            ptr, pte = cb.Pool(xtr, lab), cb.Pool(xte)
+        cv = cb.cv(ptr, dict(par, iterations=1000), fold_count=5, early_stopping_rounds=30,
+                   seed=seed, stratified=(type_ == "binary"), logging_level="Silent", as_pandas=True)
+        col = [c for c in cv.columns if c.startswith("test-") and c.endswith("-mean")][0]
+        best = max(10, int(cv[col].idxmin()) + 1)
+        if type_ == "binary":
+            m = cb.CatBoostClassifier(iterations=best, **par)
+            m.fit(ptr)
+            return m.predict_proba(pte)[:, 1]
+        m = cb.CatBoostRegressor(iterations=best, **par)
+        m.fit(ptr)
+        p = m.predict(pte, prediction_type="Exponent") if logscale else m.predict(pte)
         return np.asarray(p, dtype=float)
     if name == "realmlp":
         import torch

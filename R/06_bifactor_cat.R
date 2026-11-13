@@ -44,7 +44,8 @@ R$item <- paste(R$inst, R$criterion, sep = ":")
 R$task_family <- ifelse(R$family == "real", paste0("real_", R$type), R$family)
 R$lf <- paste(R$learner, R$task_family); R$lc <- paste(R$learner, R$cond)
 LEARNERS <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default",
-              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn")
+              "xgb_tuned", "svm", "nnet", "stack", "lightgbm", "catboost", "bart", "realmlp", "tabpfn",
+              "lightgbm_tuned", "catboost_tuned")
 LEARNERS <- LEARNERS[LEARNERS %in% unique(R$learner)]
 K <- c(5, 10, 20, 40, 80); KMAX <- max(K)
 RUNS <- as.integer(Sys.getenv("BCAT_RUNS", "3")); RAND <- as.integer(Sys.getenv("BCAT_RAND", "10"))
