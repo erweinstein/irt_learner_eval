@@ -274,7 +274,7 @@ ML2 <- glmmTMB(pass ~ 0 + learner + criterion + rr(0 + learner | condf, d = 1) +
   ch. 9).
 
 Near-duplicate learners (lasso, ridge, elastic net) agree on 90–95% of task-items and so get very large
-slopes (11–23, against 0.8–5.5 for the others). `irt_B_items_2pl_without_ridge_enet.csv` is the refit
+slopes (11–23; apart from TabPFN, the others' run from 0.8 to 5.5). `irt_B_items_2pl_without_ridge_enet.csv` is the refit
 without two of them. TabPFN's slope is near zero (0.13, SE 0.20): whether it succeeds does not follow task
 easiness the way the other learners' successes do. It passes accuracy criteria often but underpredicts the
 mean on spending and counts (`FLAGS.md` item 21).
