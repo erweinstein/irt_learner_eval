@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -135,6 +135,20 @@
     only to the stack's (73% against 76%). A possible cause, not checked: TabPFN's regressor predicts the mean of a binned
     distribution over a bounded range of the target, which may cut off long right tails, and here it uses one
     ensemble member (item 18). A log transform of the outcome, or the default ensemble, might change this.
+    **Checked in part (13 November; `R/07_tabpfn_check.R`, output/tabpfn_check.csv).** The first of five phases
+    refits TabPFN with one ensemble member on the 14 of these instances with up to 1,000 training rows (first
+    replicates), and the refits reproduce the stored mean ratios and accuracy scores exactly. (a) The bounded
+    range is not the cause: the mean of 999 quantiles of the predicted distribution is 0.96-1.00 of the point
+    prediction. (b) Nor is the target transform that TabPFN's preprocessing draws for its one member: 7 of the 14
+    fits drew a power transform and 7 none, with median ratios 0.76 and 0.77. (c) Fitted on log(1 + y), with the
+    prediction taken as the mean of expm1 over the predicted distribution's quantiles, the median ratio moves
+    from 0.77 to 0.91 (spending 0.77 to 1.02, counts 0.77 to 0.84). It is closer to 1 on 9 of the 14 instances,
+    and the calibration criterion is met on 7 instead of 4. But the transform overshoots on one (c020, 1.01 to
+    1.13) and lowers two (c016 from 1.00 to 0.91, c034 from 0.69 to 0.62). Accuracy rises on 9 of the 14 (c040
+    from 0.36 to 0.75, c017 from 0.67 to 0.95), and the accuracy criterion is met on 5 instead of 4. So the log
+    transform helps but is not a fix; on counts most of the shortfall remains, and I have not found its cause.
+    The default 8-member ensemble (on the 12 instances with up to 500 rows, on y and on log(1 + y)) and the
+    one-member fits on the 12 larger instances are still running.
 22. **Tuned LightGBM and CatBoost (13 November; `IRT_PLAN=v21`, output/responses_21.csv, output/v21/).** Tuned as
     xgb_tuned is, not by a search: learning rate 0.05, small trees (LightGBM 8 leaves with 80% row and column
     subsampling; CatBoost depth 4), the number of rounds (at most 1,000) by 5-fold cross-validated early

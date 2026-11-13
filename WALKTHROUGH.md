@@ -374,6 +374,12 @@ adaptively with the calibration from the others (section 7).
 - **Location-scale models.** A mixed-effects location-scale model of draw-to-draw variability (Hedeker,
   Mermelstein and Demirtas 2008; fitted with Wu and Hedeker's 2026 melsvmp) was degenerate on these data
   (`R/04*`, `FLAGS.md` item 16).
+- **TabPFN's low means on spending and counts** (predicted mean a median 0.77 of the training mean on the 14
+  instances with up to 1,000 training rows). `R/07_tabpfn_check.R` refits it in four variants. The cause is
+  not the bounded range of its predicted distribution, nor the target transform its preprocessing draws.
+  Fitting on log(1 + y) raises the median to 0.91 and meets the calibration criterion on 7 instances instead
+  of 4, but it overshoots on one and lowers two, and most of the shortfall on counts remains. The default
+  8-member ensemble is still being checked (`FLAGS.md` item 21).
 
 ## 10. References
 

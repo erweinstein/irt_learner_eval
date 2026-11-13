@@ -69,7 +69,9 @@ Added on 13 November:
   added to the 10-replicate run (`output/responses_more_19.csv`, `output/volatility_check_19.csv`,
   `output/mels_volatility_10reps_19.csv`). melsvmp must be on R's library path (`R_LIBS`).
 - **A check of TabPFN's low means on spending and counts** (`R/07_tabpfn_check.R`, `py/tabpfn_check.py`,
-  `run_tabpfn_check.sh`; FLAGS.md 21): results in `output/tabpfn_check.csv`.
+  `run_tabpfn_check.sh`; FLAGS.md 21): results in `output/tabpfn_check.csv`. The one-member fits on the
+  instances with up to 1,000 training rows are done: fitting on log(1 + y) helps but does not remove the
+  shortfall. The 8-member fits and the larger instances are still running.
 
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
