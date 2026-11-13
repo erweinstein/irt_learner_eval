@@ -122,8 +122,29 @@ picks up where it stopped. Environment variables run part of it:
 - `IRT_LEARNERS` chooses the learners;
 - `IRT_INSTANCE_DIR` sets the output folder.
 
-`run_v19.sh` runs, in chunks, the version that adds the five new learners. `R/02c_merge_v19.R` then
-merges it with the original run.
+`run_v19.sh` runs, in chunks, the version that adds the five new learners (`IRT_PLAN=v19`). It took about
+20 hours on two cores, including reruns after the seed fix below, mostly for TabPFN at 2,000–3,000
+training rows (up to 20 minutes and 3.7 GB per fit). To fit in a session with a 2-hour limit per job and 5.8 GB of memory:
+
+- `run_v19_queue.sh TAG SPEC...` runs chunks in order and stops after 112 minutes; rerun it and it skips
+  the instances already saved. A SPEC is `families|replicates|cores|n_min|n_max`.
+- `run_v19_fix.sh TAG` runs two queues side by side: the large first draws one at a time on one core, and the
+  fast learners on the other.
+
+**A seed bug, fixed.** `load_meps()` used to set the seed to 1 the first time it read MEPS, which overwrote the
+instance's own seed, so in the original run the three draws of each MEPS-based condition were the same data
+set (`FLAGS.md` item 19). The seed is now saved and restored around it. Two scripts check and repair the
+19-learner run:
+
+- `R/02d_check_meps_splits.R` regenerates every stored MEPS-based instance and checks it against its own
+  split (`output/meps_split_check.csv`);
+- `R/02e_add_original_plasmode.R` adds the original 14 learners to plasmode instances that were rerun with
+  the new five only.
+
+`R/02c_merge_v19.R` then merges the 19-learner run with the original one into `output/instances_19`. On the
+real-data and plasmode instances every learner was rerun, so it takes the rerun; on the simulated ones it
+adds the new learners' answers to the original 14's. `R/02b_combine.R`, with `IRT_INSTANCE_DIR` and
+`IRT_RESPONSES` set, writes `output/responses_19.csv`.
 
 `output/responses.csv` has one row per learner and task-item:
 
@@ -134,7 +155,7 @@ cond, inst, rep, criterion, learner, score, pass, secs, family, source, type, n,
 
 Before any IRT, look at the proportion of criteria each learner met (`output/irt_prop_correct.csv`). It
 is the classical test score, and the ability estimates below put the learners in almost the same order
-(Spearman 0.96 for the original 14). Ordering learners is not where IRT adds most.
+(Spearman 0.96 for the original 14, 0.93 for all 19). Ordering learners is not where IRT adds most.
 
 ## 5. Learners as examinees: a multilevel Rasch model (`R/03_irt.R`, part A)
 
@@ -173,6 +194,26 @@ A1 <- glmmTMB(pass ~ 0 + learner + criterion + (1 | task_family) + (1 | cond) + 
   interaction and are of the right size (section 7 explains why that matters).
 - `output/irt_A_profile.csv` and `fig_learner_family_profile.png`: each learner's deviation by family.
   This shows *where* a learner is strong, which a single score hides.
+
+**What you should see** (all 19 learners, from `output/v19/`; ability in logits, centred at zero, and the
+proportion of criteria met):
+
+| Learner | Ability (SE) | Met | Learner | Ability (SE) | Met |
+|---|---|---|---|---|---|
+| stack | 3.46 (0.68) | 0.80 | glm | 0.50 (0.65) | 0.56 |
+| gam | 1.81 (0.65) | 0.66 | realmlp | −0.51 (0.73) | 0.38 |
+| bart | 1.75 (0.65) | 0.68 | nnet | −1.19 (0.66) | 0.33 |
+| tabpfn | 1.67 (0.73) | 0.62 | catboost | −1.68 (0.67) | 0.28 |
+| enet | 1.62 (0.65) | 0.68 | svm | −1.92 (0.66) | 0.29 |
+| lasso | 1.49 (0.65) | 0.70 | cart | −2.08 (0.66) | 0.33 |
+| glm_matched | 1.39 (0.97) | 0.62 | lightgbm | −2.82 (0.68) | 0.24 |
+| xgb_tuned | 1.33 (0.64) | 0.65 | knn | −2.82 (0.67) | 0.22 |
+| ridge | 1.21 (0.65) | 0.64 | xgb_default | −3.94 (0.72) | 0.20 |
+| rf | 0.74 (0.64) | 0.54 | | | |
+
+The SEs are large, about 0.65 logits, so learners close together in the table are not reliably ordered;
+the clear contrast is between the upper group (the stack down to glm) and the six from CatBoost down. LightGBM and CatBoost run at their package defaults and rank with the untuned xgboost, not the tuned
+one (`FLAGS.md` item 20). glm_matched answers only spending and count tasks, hence its larger SE.
 
 ## 6. Flipped: learners as items (`R/03_irt.R`, part B)
 
@@ -233,7 +274,10 @@ ML2 <- glmmTMB(pass ~ 0 + learner + criterion + rr(0 + learner | condf, d = 1) +
   ch. 9).
 
 Near-duplicate learners (lasso, ridge, elastic net) agree on 90–95% of task-items and so get very large
-slopes. `irt_B_items_2pl_without_ridge_enet.csv` is the refit without two of them.
+slopes (11–23, against 0.8–5.5 for the others). `irt_B_items_2pl_without_ridge_enet.csv` is the refit
+without two of them. TabPFN's slope is near zero (0.13, SE 0.20): whether it succeeds does not follow task
+easiness the way the other learners' successes do. It passes accuracy criteria often but underpredicts the
+mean on spending and counts (`FLAGS.md` item 21).
 
 ## 7. Choosing tasks adaptively (`R/05_cat.R`, `R/06_bifactor_cat.R`)
 
@@ -247,7 +291,7 @@ informative one. Both scripts test this by leaving one learner out:
 **Rasch selection does not work here** (`05_cat.R`). Choosing the item with the most Rasch information
 was no more accurate than choosing at random, and the posterior SDs were too small. The reason is
 **local dependence**. With learner-by-family and learner-by-condition effects in the model, their SDs
-are 2.4 and 2.0 logits, larger than the spread of the abilities: a learner's answers within one condition
+are 2.2 and 1.7 logits, larger than the spread of the abilities (SD 1.4 in the model without them): a learner's answers within one condition
 go together beyond its overall ability.
 
 **Bifactor selection** (`06_bifactor_cat.R`) handles this, as Gibbons's adaptive tests handle subdomains
@@ -265,18 +309,18 @@ $w_c$ within $f$), computed by Gauss–Hermite quadrature on a grid for $\theta$
 that most reduces the expected posterior variance of $\theta$, taken with probability 0.8, and the second
 best with 0.2 (CAT-Autism's exposure rule).
 
-**What you should see** (original 14 learners; mean distance from the full-bank ability, in logits):
+**What you should see** (all 19 learners; mean distance from the full-bank ability, in logits):
 
 | Items given | Bifactor selection | Rasch selection | Random |
 |---|---|---|---|
-| 10 | 0.62 | 1.14 | 1.26 |
-| 20 | 0.50 | 0.61 | 0.86 |
-| 40 | 0.28 | 0.55 | 0.65 |
-| 80 | 0.21 | 0.47 | 0.41 |
+| 10 | 0.72 | 0.92 | 0.93 |
+| 20 | 0.53 | 0.77 | 0.70 |
+| 40 | 0.35 | 0.66 | 0.56 |
+| 80 | 0.20 | 0.38 | 0.35 |
 
-The bifactor rule needed a median of 36 items to bring the posterior SD within 10% of the full bank's,
-against 55 at random. But under the bifactor model even the full bank pins a learner down only to a
-posterior SD of 0.43–1.09 logits. The bank is less informative than its 469 items suggest.
+The bifactor rule needed a median of 34 items to bring the posterior SD within 10% of the full bank's,
+against 49 for Rasch selection and 56.5 at random. But under the bifactor model even the full bank pins a
+learner down only to a posterior SD of 0.39–1.01 logits. The bank is less informative than its 469 items suggest.
 
 ## 8. Adding a learner of your own
 

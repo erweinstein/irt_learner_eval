@@ -53,7 +53,9 @@ def fit_predict(name, type_, xtr, ytr, xte, seed=1):
         return np.asarray(m.predict(xte), dtype=float).ravel()
     if name == "tabpfn":
         import torch
-        torch.set_num_threads(1)
+        # one thread unless IRT_TABPFN_THREADS says otherwise (2 was used for the last large first replicates of
+        # 12 November 2026, run one at a time; the predictions agree to floating-point rounding)
+        torch.set_num_threads(int(os.environ.get("IRT_TABPFN_THREADS", "1")))
         from tabpfn import TabPFNClassifier, TabPFNRegressor
         rng = np.random.default_rng(seed)
         if xtr.shape[0] > 10000:

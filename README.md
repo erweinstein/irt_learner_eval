@@ -44,6 +44,20 @@ Added on 11 November:
   tabpfn 2.0.9 (its weights download from Hugging Face on first use), torch (CPU); R: lightgbm, dbarts,
   reticulate (1.47 or later, for NumPy 2).
 
+Added on 12 November:
+
+- **A seed bug, fixed.** `load_meps()` overwrote each instance's seed, so in the original run the three draws
+  of each of the 16 MEPS-based conditions were one data set (FLAGS.md 19). `R/02d_check_meps_splits.R` checks
+  every stored MEPS-based instance against its own split (`output/meps_split_check.csv`: the original run's
+  MEPS-based instances fail, as they should; every 19-learner one passes); `R/02e_add_original_plasmode.R`
+  adds the original learners to plasmode instances rerun with the new five only.
+- **Queues.** `run_v19_queue.sh TAG SPEC...` runs chunks in order and stops after 112 minutes (rerun it to
+  continue); `run_v19_fix.sh TAG` runs two queues side by side, the large TabPFN fits one at a time.
+- **Final 19-learner results** are in `output/v19/` (from `output/responses_19.csv`, with `03_irt.R`,
+  `06_bifactor_cat.R` and `05_cat.R` run with `IRT_RESPONSES=output/responses_19.csv IRT_OUT=output/v19`).
+  The files directly in `output/` are the original 14-learner results, which count the MEPS-based task-items
+  three times.
+
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
 `py/learners_py.py`) and `R/01_tasks.R` the 95 task conditions. The MEPS tasks
@@ -57,6 +71,7 @@ glmmTMB, mirt (needs Deriv; on R 4.3 install Deriv 4.1.6 from the CRAN archive),
 | File | What it holds |
 |---|---|
 | `output/responses.csv` | one row per instance x criterion x learner: score and pass (6,223 rows) |
+| `output/responses_19.csv`, `output/v19/` | the same for all 19 learners (7,904 rows), and the final results from them |
 | `output/irt_prop_correct*.csv` | proportion of criteria met, overall and by task family |
 | `output/irt_A_ability.csv`, `irt_A_profile.csv` | multilevel Rasch abilities; learner-by-family deviations |
 | `output/irt_B_items_2pl.csv` | flipped 2PL slopes and difficulties (and `_without_ridge_enet`) |
