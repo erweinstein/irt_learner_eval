@@ -12,11 +12,12 @@
    real-data tolerance) tuned xgboost moves from 8th to 2nd and TabPFN from 4th to 10th; with the strict ones
    (0.9, 95%, half the tolerance) the elastic net and lasso move to 2nd and 3rd. One limit: for calibration on
    yes/no outcomes the ratio of predicted to training mean is not stored, so that slope band could only be
-   narrowed. No importance response had two of the three signal predictors in its top three, so the lenient
-   importance threshold changed nothing.
+   narrowed. Every importance response had all three signal predictors in its top three (item 8), so the
+   lenient importance threshold changed nothing.
 2. **Real-data accuracy is relative to the best learner on the split**, which makes responses within a
    task-item dependent; the real-vs-simulated DIF may partly reflect this difference in criteria.
-3. **Near-duplicate learners** (lasso, ridge, enet agree on 90-95% of task-items) inflate their slopes
+3. **Near-duplicate learners** (lasso, ridge, enet agree on 90-95% of task-items with
+   the original 14 learners, 89-94% with 19) inflate their slopes
    (12-38 in the one-factor 2PL with the original 14 learners; 11-23 with all 19). The refit without ridge and enet is in irt_B_items_2pl_without_ridge_enet.csv.
 4. **Absolute fit is poor** (M2 RMSEA 0.17-0.21 for every flipped model with the original 14 learners, 0.16-0.20
    with all 19).
@@ -28,8 +29,8 @@
    are taken from the first eigenvector of the estimated covariance (rank 1), signs set so they sum positive.
 7. **Instance-level variance is zero.** With one criterion per instance for most instances, the instance and
    task-item levels are hard to separate; the estimate put all within-condition variation at the item level.
-8. **The importance criterion fixed effect is huge** (about 21-22 logits): only 6 importance items, nearly all
-   passed. It does not affect the learner estimates much but is not well determined.
+8. **The importance criterion fixed effect is huge** (about 21-22 logits): only 6 importance items, and every
+   importance response passed (all 78 in the original run, all 96 with 19 learners). It does not affect the learner estimates much but is not well determined.
 9. **Constant predictions.** 13 calibration responses (all from the pruned tree on yes/no tasks, pruned to one
    node) were scored as failures because a calibration slope cannot be computed.
 10. **The tuned xgboost did poorly on spending in dollars here** (Tweedie loss), unlike in the MEPS walkthrough;
@@ -59,7 +60,7 @@
     with 14 learners, 0.64-0.97 with 19) come from the model with the learner-by-family term and are of the
     right size.
 16. **MELS volatility model was degenerate with 3 replicates per cell** (04_mels_volatility.R): between-cell
-    variances collapsed (alpha -17 to -65) and the scale random effect took everything (sigma_omega 2.5).
+    variances collapsed for 12 of the 14 learners (alpha -17 to -65; not for xgb_default or nnet) and the scale random effect took everything (sigma_omega 2.5).
     melsvmp's sandwich stopped on a singular per-subject Hessian; the script patches it to skip such subjects
     (212 of 701) and does not use the sandwich for inference (the condition bootstrap is used). Rerun on 10
     replicates per condition. **Correction (13 November):** the condition bootstrap in output/mels_volatility.csv
@@ -94,7 +95,8 @@
     the seed to 1 (for the lasso that defines the plasmode truth) the first time MEPS was loaded in an R process,
     which overwrote the instance's own seed. The original run forked a fresh process for each instance, so all
     three replicates of each of the 16 MEPS-based conditions (real c60-c69, plasmode c54-c59) were the same data
-    set: glm, which is deterministic, has identical scores across them, and the other learners differ only through
+    set: glm, which is deterministic, has identical scores across them (except its real-data accuracy scores,
+    which are relative to the best learner on the split), and the other learners differ only through
     their own seeds. So 48 of the 301 instances were 16 data sets, and the 14-learner results in the Doc count
     those task-items three times. This probably inflates the learner-by-condition SD (item 12) and the agreement
     of answers within a condition, and with them the adaptive-testing results (items 13-15); the 10-replicate
@@ -156,5 +158,7 @@
     typical condition (log median -7.0, in the middle of the 19): its average comes from spending in dollars,
     where its signal R^2 swung widely between draws (within-condition variance 4.3 on condition 20). The
     location-scale fit is as degenerate as with 14 learners: the between-condition variance collapsed (alpha
-    -13 to -71) for 11 of the 19 learners, and the fit to scores floored at -1 stopped on a singular matrix and is
-    left out. The moments for the original 14 are unchanged (they use the same responses).
+    -14 to -71) for 11 of the 19 learners, and the fit to scores floored at -1 stopped on a singular matrix and is
+    left out. For the original 14 the within-condition moments are unchanged (the same responses); the
+    between-condition moments move by -0.12 to +0.20, because each cell mean is centred on the condition's mean
+    over all learners, which now includes five more.

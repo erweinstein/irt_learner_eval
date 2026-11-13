@@ -129,7 +129,8 @@ picks up where it stopped. Environment variables run part of it:
 
 `run_v19.sh` runs, in chunks, the version that adds the five new learners (`IRT_PLAN=v19`). It took about
 20 hours on two cores, including reruns after the seed fix below, mostly for TabPFN at 2,000–3,000
-training rows (up to 20 minutes and 3.7 GB per fit). To fit in a session with a 2-hour limit per job and 5.8 GB of memory:
+training rows (up to 20 minutes per fit, and about 3.1 GB of memory for TabPFN alone). To fit in a session
+with a 2-hour limit per job and 5.8 GB of memory:
 
 - `run_v19_queue.sh TAG SPEC...` runs chunks in order and stops after 112 minutes; rerun it and it skips
   the instances already saved. A SPEC is `families|replicates|cores|n_min|n_max`.
@@ -288,7 +289,7 @@ ML2 <- glmmTMB(pass ~ 0 + learner + criterion + rr(0 + learner | condf, d = 1) +
 - `irt_B_dif.csv`: differential functioning between simulated and real-data tasks (Bock and Gibbons
   ch. 9).
 
-Near-duplicate learners (lasso, ridge, elastic net) agree on 90–95% of task-items and so get very large
+Near-duplicate learners (lasso, ridge, elastic net) agree on 89–94% of task-items and so get very large
 slopes (11–23; apart from TabPFN, the others' run from 0.8 to 5.5). `irt_B_items_2pl_without_ridge_enet.csv` is the refit
 without two of them. TabPFN's slope is near zero (0.13, SE 0.20): whether it succeeds does not follow task
 easiness the way the other learners' successes do. It passes accuracy criteria often but underpredicts the
@@ -333,8 +334,11 @@ best with 0.2 (CAT-Autism's exposure rule).
 | 40 | 0.35 | 0.66 | 0.56 |
 | 80 | 0.20 | 0.38 | 0.35 |
 
-The bifactor rule needed a median of 34 items to bring the posterior SD within 10% of the full bank's,
-against 49 for Rasch selection and 56.5 at random. But under the bifactor model even the full bank pins a
+The errors are all measured against the full-bank ability under the bifactor model (`FLAGS.md` item 13's
+Rasch figures use the Rasch model's full bank). The target was a posterior SD within 10% of the full
+bank's. Within 80 items the bifactor rule reached it in 28 of 57 runs, Rasch selection in 21 of 57 and
+random selection in 62 of 190. In the runs that reached it, they needed a median of 34, 49 and 56.5 items.
+So most runs of every rule did not reach the target, and those medians understate the items it takes. But under the bifactor model even the full bank pins a
 learner down only to a posterior SD of 0.39–1.01 logits. The bank is less informative than its 469 items suggest.
 
 ## 8. Adding a learner of your own
