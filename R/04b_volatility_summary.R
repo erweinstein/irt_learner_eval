@@ -7,15 +7,21 @@
 #   (b) maximum likelihood (glmmTMB, Laplace) for the same model without the random scale effect:
 #       score ~ learner + condition + a cell random intercept with a variance per learner, and a residual
 #       variance per learner.
-# Output: output/volatility_check.csv
+# Output: output/volatility_check.csv. From 13 November the inputs and output can be set with IRT_RESPONSES,
+# MELS_OUT and VOL_OUT (the 19-learner version: output/responses_more_19.csv, output/mels_volatility_10reps_19,
+# output/volatility_check_19.csv)
 #
 # Eliot R. Weinstein
 # eliotw@uchicago.edu
 # erweinstein.com
 
 suppressMessages(library(glmmTMB))
-L <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default", "xgb_tuned", "svm", "nnet", "stack")
-r <- read.csv("output/responses_more.csv"); a <- r[r$criterion == "acc" & r$source == "sim" & is.finite(r$score), ]
+RESP <- Sys.getenv("IRT_RESPONSES", "output/responses_more.csv")
+MELS <- Sys.getenv("MELS_OUT", "output/mels_volatility_10reps")
+OUTF <- Sys.getenv("VOL_OUT", "output/volatility_check.csv")
+r <- read.csv(RESP); a <- r[r$criterion == "acc" & r$source == "sim" & is.finite(r$score), ]
+L <- intersect(c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default", "xgb_tuned", "svm", "nnet", "stack",
+        "lightgbm", "catboost", "bart", "lightgbm_tuned", "catboost_tuned"), unique(a$learner))
 a$learner <- factor(a$learner, L); a$cell <- factor(paste(a$cond, a$learner)); a$cond <- factor(a$cond)
 cm <- aggregate(score ~ cell + learner + cond, a, mean); wv <- aggregate(score ~ cell + learner, a, var)
 cm$dev <- cm$score - ave(cm$score, cm$cond)
@@ -25,11 +31,11 @@ f <- glmmTMB(score ~ 0 + learner + cond + diag(0 + learner | cell), dispformula 
              control = glmmTMBControl(optCtrl = list(iter.max = 5000, eval.max = 5000)))
 ml <- data.frame(learner = L, alpha_ML_no_scale_effect = 2 * log(attr(VarCorr(f)$cond$cell, "stddev")),
                  tau_ML_no_scale_effect = unname(glmmTMB::fixef(f)$disp))
-v <- read.csv("output/mels_volatility_10reps.csv"); v <- v[v$fit == "raw scores", ]
+v <- read.csv(paste0(MELS, ".csv")); v <- v[v$fit == "raw scores", ]
 vm <- data.frame(learner = L, alpha_VMP = v$estimate[match(paste0("alpha_", L), v$parameter)],
                  tau_VMP = v$estimate[match(paste0("tau_", L), v$parameter)])
 out <- Reduce(function(x, y) merge(x, y, by = "learner", sort = FALSE), list(mom, ml, vm))
 out$sigma_omega_VMP <- v$estimate[v$parameter == "sigma_omega"]
 out$tau_VMP_plus_half_sigma2 <- out$tau_VMP + out$sigma_omega_VMP^2 / 2   # log of the mean within variance under the MELS
-write.csv(out, "output/volatility_check.csv", row.names = FALSE)
+write.csv(out, OUTF, row.names = FALSE)
 print(out, digits = 3, row.names = FALSE)

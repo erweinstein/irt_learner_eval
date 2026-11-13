@@ -24,8 +24,10 @@
 # erweinstein.com
 
 suppressMessages({ library(melsvmp); library(ggplot2) })
-L <- c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default", "xgb_tuned", "svm", "nnet", "stack")
 r <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses.csv"))
+# the learners present (the 14 of the first run, plus, from 13 November, the fast learners added later)
+L <- intersect(c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default", "xgb_tuned", "svm", "nnet", "stack",
+        "lightgbm", "catboost", "bart", "lightgbm_tuned", "catboost_tuned"), unique(r$learner))
 a <- r[r$criterion == "acc" & r$source == "sim" & is.finite(r$score), ]
 a$learner <- factor(a$learner, L); a$family <- factor(a$family)
 a$cell <- paste(a$cond, a$learner, sep = ":")
@@ -56,25 +58,29 @@ fit_mels <- function(d) {
   mels_vmp(y = "y", beta_formula = reformulate(c("0", colnames(X), colnames(C))), alpha_formula = reformulate(c("0", colnames(X))),
            tau_formula = reformulate(c("0", colnames(X))), id = "cell", data = d, verbose = FALSE)
 }
-est <- function(f) c(setNames(f$beta$params[1:14], paste0("beta_", L)), setNames(f$alpha$params, paste0("alpha_", L)),
+est <- function(f) c(setNames(f$beta$params[seq_along(L)], paste0("beta_", L)), setNames(f$alpha$params, paste0("alpha_", L)),
                      setNames(f$tau$params, paste0("tau_", L)), sigma_omega = f$omega$std_dev)
 fit_one <- function(d, label, B = as.integer(Sys.getenv("MELS_B", "500"))) {
   SKIPPED <<- 0; f <- fit_mels(d); e <- est(f); cat(label, ": subjects left out of the sandwich's bread:", SKIPPED, "\n")
-  sw <- c(sqrt(diag(f$beta$cov_mat))[1:14], sqrt(diag(f$alpha$cov_mat)), sqrt(diag(f$tau$cov_mat)), NA)
+  sw <- c(sqrt(diag(f$beta$cov_mat))[seq_along(L)], sqrt(diag(f$alpha$cov_mat)), sqrt(diag(f$tau$cov_mat)), NA)
   conds <- unique(d$cond)
+  if (B == 0) bt <- matrix(NA_real_, 1, length(e)) else    # MELS_B=0: no bootstrap
   bt <- do.call(rbind, mclapply(seq_len(B), function(b) {
     s <- sample(conds, replace = TRUE)
     db <- do.call(rbind, lapply(seq_along(s), function(j) { x <- d[d$cond == s[j], ]
       x$cell <- paste(j, x$cell); x$cond <- j; x }))
-    tryCatch(est(fit_mels(db)), error = function(e) rep(NA, length(e)))
-  }, mc.cores = 2, mc.set.seed = TRUE))
+    tryCatch(est(fit_mels(db)), error = function(err) rep(NA_real_, length(e)))   # (was length(e) of the error)
+  }, mc.cores = as.integer(Sys.getenv("MELS_CORES", "2")), mc.set.seed = TRUE))
   data.frame(fit = label, parameter = names(e), estimate = unname(e), sandwich_se = unname(sw),
              boot_se = apply(bt, 2, sd, na.rm = TRUE), boot_lo = apply(bt, 2, quantile, 0.025, na.rm = TRUE),
              boot_hi = apply(bt, 2, quantile, 0.975, na.rm = TRUE), boot_ok = colSums(is.finite(bt)),
              runtime = f$runtime, row.names = NULL)
 }
 a$y <- a$score; F1 <- fit_one(a, "raw scores")
-a$y <- pmax(a$score, -1); F2 <- fit_one(a, "scores floored at -1")
+a$y <- pmax(a$score, -1)
+# with the 19 learners of 13 November this fit stops on a singular matrix in melsvmp's alpha update; it is then
+# left out (the raw-score fit is the one used)
+F2 <- tryCatch(fit_one(a, "scores floored at -1"), error = function(err) { cat("floored fit stopped:", conditionMessage(err), "\n"); NULL })
 out <- rbind(F1, F2)
 out$learner <- sub("^(beta|alpha|tau)_", "", out$parameter); out$learner[out$parameter == "sigma_omega"] <- NA
 OUT <- Sys.getenv("MELS_OUT", "output/mels_volatility")

@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22 on 13 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -62,7 +62,13 @@
     variances collapsed (alpha -17 to -65) and the scale random effect took everything (sigma_omega 2.5).
     melsvmp's sandwich stopped on a singular per-subject Hessian; the script patches it to skip such subjects
     (212 of 701) and does not use the sandwich for inference (the condition bootstrap is used). Rerun on 10
-    replicates per condition.
+    replicates per condition. **Correction (13 November):** the condition bootstrap in output/mels_volatility.csv
+    rests on 3 or 4 successful refits for every parameter (column boot_ok); the others stopped, apparently on
+    a singular system ("reciprocal condition number 2.7e-24" in a reproduction of one replicate), and the
+    error handler returned a vector of the wrong length (fixed). So its bootstrap SEs and intervals should not
+    be used. No reported result depends on them: the Doc and the walkthrough give only the point estimates and
+    the descriptive check. The 10-replicate fits (output/mels_volatility_10reps.csv, and with 19 learners
+    output/mels_volatility_10reps_19.csv, MELS_B=0) have no bootstrap.
 17. **Two (near-)constant cells dropped** from the MELS fit (pruned tree on condition 24; glm on condition 49).
 18. **Five learners added** (LightGBM, CatBoost, BART, RealMLP, TabPFN v2), chosen from TabArena (Erickson et al.
     2025: TabM, LightGBM and RealMLP top its leaderboard with ensembling, CatBoost with tuning alone), TabPFN
@@ -141,3 +147,14 @@
     abilities and proportions met; three factors best by BIC, with the tuned boosters loading on the flexible
     factor at 0.85-0.89), except that bifactor adaptive selection is no better than random at 10 items (mean
     error 0.98 logits against 0.88); from 20 items on it is better (0.20 against 0.33 at 80).
+23. **Draw-to-draw volatility with the new fast learners (13 November).** LightGBM and CatBoost (defaults and
+    tuned) and BART were added to the 10-replicate run of the simulated tasks (R/02g_merge_more.R;
+    output/responses_more_19.csv; RealMLP and TabPFN are too slow to run 10 times). By the moments of
+    R/04b_volatility_summary.R (output/volatility_check_19.csv), the tuned LightGBM and CatBoost vary from draw to
+    draw about as little as xgb_tuned (log average within-condition variance -6.0, -6.0 and -6.1, against about
+    -6.5 for the three penalized regressions). BART, like the GAM, varies a lot on average (-2.2) but not in a
+    typical condition (log median -7.0, in the middle of the 19): its average comes from spending in dollars,
+    where its signal R^2 swung widely between draws (within-condition variance 4.3 on condition 20). The
+    location-scale fit is as degenerate as with 14 learners: the between-condition variance collapsed (alpha
+    -13 to -71) for 11 of the 19 learners, and the fit to scores floored at -1 stopped on a singular matrix and is
+    left out. The moments for the original 14 are unchanged (they use the same responses).

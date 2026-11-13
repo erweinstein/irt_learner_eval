@@ -65,6 +65,9 @@ Added on 13 November:
   in `output/responses_21.csv` and `output/v21/`.
 - **Threshold sensitivity** (`R/08_threshold_sensitivity.R`; FLAGS.md 1): results in
   `output/v19/threshold_sensitivity_*.csv`.
+- **Volatility with the new fast learners** (`R/02g_merge_more.R`; FLAGS.md 23): LightGBM, CatBoost and BART
+  added to the 10-replicate run (`output/responses_more_19.csv`, `output/volatility_check_19.csv`,
+  `output/mels_volatility_10reps_19.csv`). melsvmp must be on R's library path (`R_LIBS`).
 - **A check of TabPFN's low means on spending and counts** (`R/07_tabpfn_check.R`, `py/tabpfn_check.py`,
   `run_tabpfn_check.sh`; FLAGS.md 21): results in `output/tabpfn_check.csv`.
 
