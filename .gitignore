@@ -5,6 +5,7 @@ output/v19/bcat_parts/
 output/*.rds
 output/v19/*.rds
 logs/
+cache/
 __pycache__/
 *.Rhistory
 .Rproj.user/

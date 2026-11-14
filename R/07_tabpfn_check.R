@@ -6,8 +6,9 @@
 # of the 17 learners run on every instance, recovered from the stored scores).
 # Resumable: each variant x instance is appended to output/tabpfn_check.csv as it finishes. The order is set so
 # that a run stopped early still answers the main question: the one-member variants on the instances with up to
-# 1,000 training rows first, then 8 members on those with up to 500 (an 8-member fit takes about 30-40 minutes
-# there on one CPU thread, with 5,000 test rows), then the larger instances.
+# 1,000 training rows first, then 8 members on those with up to 500 and fewer than 45 features (an 8-member fit
+# takes about 30-45 minutes there on one CPU thread, with 5,000 test rows), then the larger instances, and last
+# 8 members on the instances with 45-70 features (about 3 hours each).
 # IRT_CHECK_MAX_N (default Inf) skips instances with more training rows.
 #
 # Eliot R. Weinstein
@@ -23,13 +24,16 @@ items$acc_stored <- acc0$score[match(items$inst, acc0$inst)]
 names(items)[names(items) == "score"] <- "cal_stored"
 maxn <- as.numeric(Sys.getenv("IRT_CHECK_MAX_N", "Inf"))
 ph <- function(sel, v) expand.grid(inst = items$inst[sel], variant = v, stringsAsFactors = FALSE)
-plan <- rbind(ph(items$n <= 1000, c("raw1", "log1")),   # 1: the main comparison, smaller instances
-              ph(items$n <= 500, "raw8"),               # 2: TabPFN's default ensemble (8 times as slow)
-              ph(items$n <= 500, "log8"),
-              ph(items$n > 1000, c("raw1", "log1")),    # 3: the larger instances
-              ph(items$n > 500 & items$n <= 1000, "raw8"))
-plan$phase <- rep(1:5, c(sum(items$n <= 1000) * 2, sum(items$n <= 500), sum(items$n <= 500), sum(items$n > 1000) * 2,
-                         sum(items$n > 500 & items$n <= 1000)))
+items$p <- NA_integer_                                  # number of features, from the first phase's rows
+if (!is.null(done0 <- if (file.exists(OUT)) read.csv(OUT))) items$p <- done0$p[match(items$inst, done0$inst)]
+slow <- !is.na(items$p) & items$p >= 45                  # 8 members there take about 3 hours (cached in blocks)
+plan <- rbind(ph(items$n <= 1000, c("raw1", "log1")),            # 1: the main comparison, smaller instances
+              ph(items$n <= 500 & !slow, c("raw8", "log8")),      # 2: TabPFN's default ensemble (8 times as slow)
+              ph(items$n > 1000, c("raw1", "log1")),             # 3: the larger instances
+              ph(items$n > 500 & items$n <= 1000, "raw8"),
+              ph(items$n <= 500 & slow, c("raw8", "log8")))       # 5: the default ensemble with 45-70 features
+plan$phase <- rep(1:5, c(sum(items$n <= 1000) * 2, sum(items$n <= 500 & !slow) * 2, sum(items$n > 1000) * 2,
+                         sum(items$n > 500 & items$n <= 1000), sum(items$n <= 500 & slow) * 2))
 plan$n <- items$n[match(plan$inst, items$inst)]
 plan <- plan[order(plan$phase, plan$n), ]
 plan <- plan[plan$n <= maxn, ]
@@ -49,7 +53,11 @@ for (k in seq_len(nrow(plan))) {
     cache <- list(); cache[[ii]] <- list(inst = inst, xtr = dc$xtr, xte = dc$xte, s = s)
   }
   ci <- cache[[ii]]; inst <- ci$inst
-  r <- py$fit_variant(ci$xtr, inst$ytr, ci$xte, ci$s, n_est = if (grepl("8", v)) 8L else 1L, log = grepl("log", v))
+  # each block of 1,000 test rows is kept in cache/tabpfn_check as it finishes, so a fit cut off by the time limit
+  # resumes there (row-level predictions, some from MEPS: never copied to the repository)
+  dir.create("cache/tabpfn_check", recursive = TRUE, showWarnings = FALSE)
+  r <- py$fit_variant(ci$xtr, inst$ytr, ci$xte, ci$s, n_est = if (grepl("8", v)) 8L else 1L, log = grepl("log", v),
+                      cache = file.path("cache/tabpfn_check", paste0(ii, "_", v)))
   p <- as.numeric(r$mean); ratio <- mean(p) / mean(inst$ytr)
   if (!is.null(inst$truth)) { acc <- signal_r2(p, inst$truth); acc_pass <- as.integer(acc >= 0.8); best <- NA
   } else {

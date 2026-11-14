@@ -9,6 +9,10 @@
 #   transforms  the target transform of each ensemble member
 # Variants: n_estimators 1 (as in the IRT run) or 8 (TabPFN's default for regression); raw or log1p outcome.
 # Same settings as py/learners_py.py otherwise (CPU, ignore_pretraining_limits, test rows 1,000 at a time).
+# With cache (a path prefix), each block of 1,000 test rows is saved as it finishes and reloaded on the next call,
+# so a fit longer than one session's time limit (8 members with 45-70 features) finishes over several runs. The
+# fitted model is the same on every call (same data and random_state), and a test row's prediction does not
+# depend on the other test rows, so the blocks are those of one uninterrupted fit.
 #
 # Eliot R. Weinstein
 # eliotw@uchicago.edu
@@ -23,7 +27,7 @@ import numpy as np
 warnings.filterwarnings("ignore")
 
 
-def fit_variant(xtr, ytr, xte, seed, n_est, log):
+def fit_variant(xtr, ytr, xte, seed, n_est, log, cache=None):
     import torch
     torch.set_num_threads(int(os.environ.get("IRT_TABPFN_THREADS", "1")))
     from tabpfn import TabPFNRegressor
@@ -38,15 +42,22 @@ def fit_variant(xtr, ytr, xte, seed, n_est, log):
     t0 = time.time()
     m = TabPFNRegressor(device="cpu", n_estimators=int(n_est), random_state=seed, ignore_pretraining_limits=True)
     m.fit(xtr, np.log1p(ytr) if log else ytr)
+    secs = time.time() - t0
     mean, qmean = [], []
     for i in range(0, xte.shape[0], 1000):
+        f = None if cache is None else f"{cache}_{i // 1000}.npz"
+        if f is not None and os.path.exists(f):
+            z = np.load(f); mean.append(z["mean"]); qmean.append(z["qmean"]); secs += float(z["secs"]); continue
+        t1 = time.time()
         o = m.predict(xte[i:i + 1000], output_type="full")
         q = quantiles(o["criterion"], o["logits"])                     # rows x 999
         mean.append(np.expm1(q).mean(axis=1) if log else np.asarray(o["mean"], dtype=float))
         qmean.append(np.full(q.shape[0], np.nan) if log else q.mean(axis=1))
+        secs += time.time() - t1
+        if f is not None:
+            np.savez(f, mean=mean[-1], qmean=qmean[-1], secs=time.time() - t1)
     tr = "; ".join(transform_name(c.target_transform) for c in m.executor_.ensemble_configs)
-    return {"mean": np.concatenate(mean), "qmean": np.concatenate(qmean), "transforms": tr,
-            "secs": time.time() - t0}
+    return {"mean": np.concatenate(mean), "qmean": np.concatenate(qmean), "transforms": tr, "secs": secs}
 
 
 def transform_name(t):

@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second phase of that check in 21 on 14 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -147,8 +147,20 @@
     1.13) and lowers two (c016 from 1.00 to 0.91, c034 from 0.69 to 0.62). Accuracy rises on 9 of the 14 (c040
     from 0.36 to 0.75, c017 from 0.67 to 0.95), and the accuracy criterion is met on 5 instead of 4. So the log
     transform helps but is not a fix; on counts most of the shortfall remains, and I have not found its cause.
-    The default 8-member ensemble (on the 12 instances with up to 500 rows, on y and on log(1 + y)) and the
-    one-member fits on the 12 larger instances are still running.
+    (d) The ensemble is not the cause either (second phase, 14 November: TabPFN's default of 8 members, on the 8
+    of these instances with up to 500 rows and 10-17 features). On every fit 4 members drew a power transform
+    and 4 none. On y, 8 members move the median ratio only from 0.74 to 0.78 on these 8, and in both directions
+    (c016 1.00 to 0.90, c019 0.76 to 0.67; c034 0.69 to 0.79, c070 0.72 to 0.83); the calibration criterion is
+    met on 1 of the 8 either way. On log(1 + y), 8 members give a median ratio of 0.87 (one member 0.83): closer
+    to 1 than the stored one-member fit on 6 of the 8, but closer than the one-member log fit on only 4. The
+    calibration criterion is met on 3 of the 8 (as with one member on log(1 + y)), the accuracy criterion on 2
+    (1 for the stored fit), and accuracy is higher than the stored fit's on 6. Two counts stay well short of the
+    training mean in every variant (c036 0.73-0.82, c074 0.57-0.76). So of the four variants, 8 members on log(1
+    + y) does best, but most of its gain comes from the log scale, it costs about ten times as long (30-45
+    minutes against 4 on these instances), and it does not remove the shortfall on counts. The one-member fits
+    on the 12 larger instances (third phase; the first three reproduce the stored ratios exactly), the 8-member
+    fits on y for the two with 1,000 rows, and the 8-member fits on the four instances with 45-70 features (about
+    3.3 hours each) are still running.
 22. **Tuned LightGBM and CatBoost (13 November; `IRT_PLAN=v21`, output/responses_21.csv, output/v21/).** Tuned as
     xgb_tuned is, not by a search: learning rate 0.05, small trees (LightGBM 8 leaves with 80% row and column
     subsampling; CatBoost depth 4), the number of rounds (at most 1,000) by 5-fold cross-validated early

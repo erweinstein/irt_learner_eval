@@ -378,8 +378,11 @@ adaptively with the calibration from the others (section 7).
   instances with up to 1,000 training rows). `R/07_tabpfn_check.R` refits it in four variants. The cause is
   not the bounded range of its predicted distribution, nor the target transform its preprocessing draws.
   Fitting on log(1 + y) raises the median to 0.91 and meets the calibration criterion on 7 instances instead
-  of 4, but it overshoots on one and lowers two, and most of the shortfall on counts remains. The default
-  8-member ensemble is still being checked (`FLAGS.md` item 21).
+  of 4, but it overshoots on one and lowers two, and most of the shortfall on counts remains. Nor is the
+  cause the single ensemble member: on the 8 instances with up to 500 rows and 10-17 features, TabPFN's
+  default of 8 members barely moves the median on y (0.74 to 0.78). With 8 members on log(1 + y) the median
+  is 0.87, the best of the four variants, but most of that comes from the log scale, it takes about ten times
+  as long, and two counts stay at 0.73-0.76. The larger instances are still being checked (`FLAGS.md` item 21).
 
 ## 10. References
 
