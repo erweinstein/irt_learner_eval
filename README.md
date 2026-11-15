@@ -72,7 +72,8 @@ Added on 13 November:
   `run_tabpfn_check.sh`; FLAGS.md 21): results in `output/tabpfn_check.csv`. The one-member fits on the
   instances with up to 1,000 training rows are done: fitting on log(1 + y) helps but does not remove the
   shortfall. Nor does TabPFN's default 8-member ensemble on the instances with up to 500 rows and 10-17
-  features (14 November). The larger instances are still running.
+  features (14 November). Over all 26 instances, the log scale fixes the mean on spending (median ratio 0.76
+  to 1.02) but not on counts (0.84 to 0.83). The 8-member fits on the larger instances are still running.
 
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from

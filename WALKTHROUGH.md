@@ -382,7 +382,12 @@ adaptively with the calibration from the others (section 7).
   cause the single ensemble member: on the 8 instances with up to 500 rows and 10-17 features, TabPFN's
   default of 8 members barely moves the median on y (0.74 to 0.78). With 8 members on log(1 + y) the median
   is 0.87, the best of the four variants, but most of that comes from the log scale, it takes about ten times
-  as long, and two counts stay at 0.73-0.76. The larger instances are still being checked (`FLAGS.md` item 21).
+  as long, and two counts stay at 0.73-0.76. On the 12 larger instances (2,000-3,000 rows) the pattern is
+  sharper: one member on log(1 + y) brings spending from a median 0.75 to 1.03, but lowers counts from 0.96
+  to 0.83. Over all 26 instances the log scale moves spending from 0.76 to 1.02 and leaves counts at 0.84
+  and 0.83. So it fixes the mean on spending; I have not found the cause of the shortfall on counts, which
+  varies from instance to instance. The 8-member fits on the instances with 1,000 rows or 45-70 features
+  are still running (`FLAGS.md` item 21).
 
 ## 10. References
 
