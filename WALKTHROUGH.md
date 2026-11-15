@@ -393,8 +393,9 @@ adaptively with the calibration from the others (section 7).
   concentrated at the low end (`R/07b_tabpfn_check_instances.R`, `R/07c_tabpfn_dist_check.R`). Had TabPFN been
   fitted on log(1 + y) for spending, it would rank 2nd of the 21 learners in the multilevel Rasch model, behind
   only the stack, instead of 4th (`R/07d_tabpfn_log_sensitivity.R`; a what-if, since the scale was chosen after
-  seeing these results). The 8-member fits on log(1 + y) for the four instances with 45-70 features are still
-  running (`FLAGS.md` item 21).
+  seeing these results). On the 12 instances fitted every way, TabPFN's default 8-member ensemble on log(1 + y)
+  does only a little better than one member on log(1 + y) (median ratio 0.90 against 0.88; calibration met on 6
+  of 12 either way), at about nine times the cost, and five counts stay well short (`FLAGS.md` item 21).
 
 ## 10. References
 

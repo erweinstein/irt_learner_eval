@@ -172,8 +172,16 @@
     counts on the whole, where the shortfall varies from instance to instance.
     (f) The 8-member fits on y for the instances with 1,000 rows or 45-70 features (fourth and fifth phases, 14-15
     November) again move the ratio both ways: c017 0.77 to 0.80, c020 1.01 to 0.87, c058 0.82 to 0.80, c062 0.76
-    to 0.87, c068 0.90 to 0.97, c082 1.00 to 1.01. The 8-member fits on log(1 + y) for the last four are still
-    running.
+    to 0.87, c068 0.90 to 0.97, c082 1.00 to 1.01. On log(1 + y), 8 members on the last four (finished 15
+    November) give c058 0.83 (one member on log(1 + y) 0.85), c062 0.99 (1.02), c068 1.02 (1.05) and c082 1.01
+    (1.02): the spending instance c062 is fixed either way, and the count c058 stays short either way. Over the
+    12 instances with all four variants (3 spending, 9 counts; up to 500 rows), the median ratio is 0.76 for the
+    stored one-member fit on y, 0.88 for one member on log(1 + y), 0.82 for 8 members on y and 0.90 for 8 members
+    on log(1 + y); the calibration criterion is met on 3, 6, 3 and 6, the accuracy criterion on 3, 3, 3 and 4.
+    On the 9 counts alone the medians are 0.77, 0.84, 0.80 and 0.86, and five counts stay well short in the best
+    variant (c036 0.73, c074 0.75, c070 0.82, c058 0.83, c040 0.86). So the conclusion of (d) holds on all 12: 8
+    members on log(1 + y) does a little better than one member on log(1 + y), takes about nine times as long
+    (a median of 45 minutes against 5 per fit on these instances), and does not remove the shortfall on counts.
     (g) What goes with the shortfall (15 November; `R/07b_tabpfn_check_instances.R`, which rebuilds the 26
     instances without fitting; output/tabpfn_check_instances.csv and tabpfn_check_correlates.csv). On spending
     (8 instances) the one-member ratio falls with the weight of the right tail: Spearman correlation -0.86 with

@@ -77,8 +77,8 @@ Added on 13 November:
   (`R/07b_tabpfn_check_instances.R`), where in TabPFN's predictive distribution the mean on counts is lost
   (`R/07c_tabpfn_dist_check.R`, `py/tabpfn_dist_check.py`: too little in the upper tail, and sometimes too much
   at zero), and TabPFN's place among the 21 learners had it been fitted on log(1 + y)
-  (`R/07d_tabpfn_log_sensitivity.R`: 2nd instead of 4th with log(1 + y) on spending). The last four 8-member
-  fits are still running.
+  (`R/07d_tabpfn_log_sensitivity.R`: 2nd instead of 4th with log(1 + y) on spending). The check finished on
+  15 November: the 8-member ensemble on log(1 + y) does little better than one member on log(1 + y).
 
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
