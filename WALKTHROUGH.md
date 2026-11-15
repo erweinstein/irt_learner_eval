@@ -385,9 +385,16 @@ adaptively with the calibration from the others (section 7).
   as long, and two counts stay at 0.73-0.76. On the 12 larger instances (2,000-3,000 rows) the pattern is
   sharper: one member on log(1 + y) brings spending from a median 0.75 to 1.03, but lowers counts from 0.96
   to 0.83. Over all 26 instances the log scale moves spending from 0.76 to 1.02 and leaves counts at 0.84
-  and 0.83. So it fixes the mean on spending; I have not found the cause of the shortfall on counts, which
-  varies from instance to instance. The 8-member fits on the instances with 1,000 rows or 45-70 features
-  are still running (`FLAGS.md` item 21).
+  and 0.83. So it fixes the mean on spending, where the shortfall grows with the weight of the right tail
+  (Spearman -0.86 with the largest value over the mean). On counts the shortfall goes instead with the share
+  of zeros (-0.59) and weak signal. On six count instances, TabPFN's predictive distribution gives values
+  above the training 99th percentile about 4 to 35 times too little probability, and on four of them too much
+  to zero, and the training rows predicted in-sample fall as short as the test rows: the distribution is too
+  concentrated at the low end (`R/07b_tabpfn_check_instances.R`, `R/07c_tabpfn_dist_check.R`). Had TabPFN been
+  fitted on log(1 + y) for spending, it would rank 2nd of the 21 learners in the multilevel Rasch model, behind
+  only the stack, instead of 4th (`R/07d_tabpfn_log_sensitivity.R`; a what-if, since the scale was chosen after
+  seeing these results). The 8-member fits on log(1 + y) for the four instances with 45-70 features are still
+  running (`FLAGS.md` item 21).
 
 ## 10. References
 

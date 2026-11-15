@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -169,9 +169,42 @@
     8. Over all 26 instances, then, fitting one member on log(1 + y) moves the median ratio on spending from 0.76
     to 1.02 (calibration met on 7 of 8 instead of 3) and on counts from 0.84 to 0.83 (on 7 of 18 instead of 6).
     So the log scale fixes the mean on spending, which is strongly right-skewed, and does nothing for
-    counts on the whole, where the shortfall varies from instance to instance and I have not found its cause.
-    The 8-member fits on y for the two instances with 1,000 rows (c017 0.77 to 0.80 so far), and the 8-member
-    fits on the four instances with 45-70 features (about 3.3 hours each), are still running.
+    counts on the whole, where the shortfall varies from instance to instance.
+    (f) The 8-member fits on y for the instances with 1,000 rows or 45-70 features (fourth and fifth phases, 14-15
+    November) again move the ratio both ways: c017 0.77 to 0.80, c020 1.01 to 0.87, c058 0.82 to 0.80, c062 0.76
+    to 0.87, c068 0.90 to 0.97, c082 1.00 to 1.01. The 8-member fits on log(1 + y) for the last four are still
+    running.
+    (g) What goes with the shortfall (15 November; `R/07b_tabpfn_check_instances.R`, which rebuilds the 26
+    instances without fitting; output/tabpfn_check_instances.csv and tabpfn_check_correlates.csv). On spending
+    (8 instances) the one-member ratio falls with the weight of the right tail: Spearman correlation -0.86 with
+    the largest value over the mean and with the variance over the mean, -0.69 with skewness; and the gain from
+    the log scale rises with them (+0.83 with the largest value over the mean). On counts (18) nothing about the
+    tail goes with the ratio (|rho| <= 0.14 for skewness, the largest value over the mean and the largest
+    standardized value); the ratio is lower where zeros are more common (-0.59) and, on the 10 simulated
+    instances, where the true mean explains less of the outcome's variance (+0.62).
+    (h) Where the mean is lost (15 November; `R/07c_tabpfn_dist_check.R`, `py/tabpfn_dist_check.py`,
+    output/tabpfn_dist_check.csv). On six count instances with 500 training rows and 10-17 features, the one-member
+    fit's predictive distribution, averaged over 2,000 test rows and set against the test outcomes, has far too
+    little above the training 99th percentile on every one: 0.02-0.42% of the probability against 0.45-1.55% of
+    the outcomes, about 4 to 35 times too little. On four of the six it also puts too much on zero (c040 0.56 against
+    0.23; c038 0.32 against 0.24; c034, c070 about 0.04 too much). Values above the training 90th percentile
+    account for 5-84% of the gap between the test mean and the mean prediction; the rest is the bulk of the
+    distribution sitting too low. The training rows, predicted in-sample, fall short by as much (ratio 0.60-0.85
+    against 0.55-0.86 on the test rows), so it is not overfitting or a difference between training and test
+    data. (This does not contradict (a): the mean TabPFN reports is the mean of its own predictive distribution;
+    that distribution is too light in its upper tail and, on some instances, too heavy at zero.) So on counts
+    TabPFN's predictive distribution is too concentrated at the low end, most where zeros are common and the
+    signal is weak, and neither the log scale nor the ensemble corrects it. The binning is continuous, so the
+    shares above an integer threshold t are compared with the outcomes above t; that favors the predictions.
+    (i) What it costs TabPFN among the 21 learners (15 November; `R/07d_tabpfn_log_sensitivity.R`,
+    output/v21/tabpfn_log_sensitivity.csv). Putting the one-member log(1 + y) fit's responses in place of
+    TabPFN's on the 8 spending instances changes 9 responses, raises its proportion of criteria met from 0.62 to
+    0.67, and moves it in the multilevel Rasch model (A1, as in R/08) from 1.53 and 4th to 2.19 and 2nd, behind
+    only the stack (3.28); no other learner moves more than 0.07. Doing the same on counts too (16 responses)
+    gives 2.10, still 2nd. So TabPFN's place below gam and BART comes from its spending means, which a log scale
+    would have fixed. This is what-if, not a fair comparison: I chose the log scale for spending after seeing
+    these results, and no other learner was given a choice of scale (glm_matched, gam and the boosters fit
+    spending with a log link; glm, lasso, ridge and enet fit dollars by squared error).
 22. **Tuned LightGBM and CatBoost (13 November; `IRT_PLAN=v21`, output/responses_21.csv, output/v21/).** Tuned as
     xgb_tuned is, not by a search: learning rate 0.05, small trees (LightGBM 8 leaves with 80% row and column
     subsampling; CatBoost depth 4), the number of rounds (at most 1,000) by 5-fold cross-validated early

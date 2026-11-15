@@ -73,7 +73,12 @@ Added on 13 November:
   instances with up to 1,000 training rows are done: fitting on log(1 + y) helps but does not remove the
   shortfall. Nor does TabPFN's default 8-member ensemble on the instances with up to 500 rows and 10-17
   features (14 November). Over all 26 instances, the log scale fixes the mean on spending (median ratio 0.76
-  to 1.02) but not on counts (0.84 to 0.83). The 8-member fits on the larger instances are still running.
+  to 1.02) but not on counts (0.84 to 0.83). Added on 15 November: what goes with the shortfall
+  (`R/07b_tabpfn_check_instances.R`), where in TabPFN's predictive distribution the mean on counts is lost
+  (`R/07c_tabpfn_dist_check.R`, `py/tabpfn_dist_check.py`: too little in the upper tail, and sometimes too much
+  at zero), and TabPFN's place among the 21 learners had it been fitted on log(1 + y)
+  (`R/07d_tabpfn_log_sensitivity.R`: 2nd instead of 4th with log(1 + y) on spending). The last four 8-member
+  fits are still running.
 
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
