@@ -1,0 +1,2 @@
+"Q","loglik_laplace","loglik_partial","difference","Q_check","loglik_partial_Q_check","sd_lf_glmmTMB","sd_lf_laplace_grid","sd_lf_partial","sd_lc_glmmTMB","sd_lc_laplace_grid","sd_lc_partial","ratio_lf","ratio_lc","grad_check_rel","hess_check","cluster_check_max_err","small_sd_diff"
+30,-3324.90512421334,-3290.15569410077,34.7494301125694,45,-3290.1729563444,2.06494804030687,2.06766611799501,2.14693773814601,1.65025577899625,1.64213082213618,1.75324719501076,1.038338694754,1.06766596873812,2.37487699877483e-10,4.88257264548942e-10,0.0125850291285374,0.00841394676990603
