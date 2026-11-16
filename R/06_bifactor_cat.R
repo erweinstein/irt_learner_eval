@@ -51,6 +51,10 @@ OUT <- Sys.getenv("IRT_OUT", "output"); dir.create(OUT, showWarnings = FALSE, re
 R <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses.csv"), stringsAsFactors = FALSE)
 R <- R[is.finite(R$pass), ]
 GRADED <- Sys.getenv("BCAT_GRADED", "0") == "1"; SUF <- if (GRADED) "_graded" else ""
+# BCAT_SF_SCALE and BCAT_SC_SCALE multiply the calibrated learner-by-family and learner-by-condition SDs (to
+# correct them for the downward bias found by R/09_laplace_check.R); output files then end in _sdadj
+SF_SCALE <- as.numeric(Sys.getenv("BCAT_SF_SCALE", "1")); SC_SCALE <- as.numeric(Sys.getenv("BCAT_SC_SCALE", "1"))
+if (SF_SCALE != 1 || SC_SCALE != 1) SUF <- paste0(SUF, "_sdadj")
 if (GRADED) {   # the graded scoring of 03_irt.R
   grade <- function(r) { s <- r$score; c0 <- r$criterion
     ifelse(is.na(r$pass), NA, ifelse(r$pass == 1, 2,
@@ -171,7 +175,7 @@ one_learner <- function(lo) {
   fit <- glmmTMB(y ~ 0 + learner + crit + (1 | task_family) + (1 | cond) + (1 | inst) + (1 | item) +
                    (1 | lf) + (1 | lc), Rc, binomial)
   fe <- glmmTMB::fixef(fit)$cond; re <- glmmTMB::ranef(fit)$cond; vc <- glmmTMB::VarCorr(fit)$cond
-  sf <- unname(attr(vc$lf, "stddev")); sc <- unname(attr(vc$lc, "stddev"))
+  sf <- SF_SCALE * unname(attr(vc$lf, "stddev")); sc <- SC_SCALE * unname(attr(vc$lc, "stddev"))
   th <- fe[grepl("^learner", names(fe))]
   it <- unique(R[R$learner == lo, c("item", "inst", "cond", "task_family", "criterion")]); names(it)[4] <- "fam"
   cn <- sub("^crit", "", names(fe)[grepl("^crit", names(fe))])
