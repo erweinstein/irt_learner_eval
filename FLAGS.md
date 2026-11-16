@@ -272,31 +272,53 @@
     by 1.2-2.5 SD of the 21 full-bank abilities; with bifactor selection the difference exceeds 1.96 posterior SDs
     in every run from 20 items on. The differences are large, so this shows the score is not broken more than
     that it is sensitive.
-25. **The calibrations use the Laplace approximation; the variance components are about 10% too small, but not
-    because of it (checked 16 November; R/09_laplace_check.R, output/v21/laplace_*.csv).** Every glmmTMB fit
-    here uses the Laplace approximation, which is adaptive quadrature with one point. Hedeker (2015) recommends
-    more points, which glmmTMB and lme4 do not offer for crossed random effects, and a learner has a median of
-    only 6 task-items in a task condition.
-    (a) The approximation. Refitting each component alone on the real responses, with every other term of the
-    glmmTMB fit in an offset, lme4 gives the same SD with the Laplace approximation and with 25-point adaptive
-    quadrature, to within 0.4% (learner by condition 0.980 against 0.984; learner by family, item and condition
-    equal to three decimals). This checks one component at a time, not the joint integral over the crossed
-    effects, which no software here computes.
+25. **The calibrations' variance components are about 10% too small, mainly because of the Laplace approximation
+    (checked 16 November; R/09_laplace_check.R, R/09b_laplace_consistency.R, R/10_partial_laplace.R;
+    output/v21/laplace_*.csv, partial_laplace_*.csv).** Every glmmTMB fit here uses the Laplace approximation
+    (adaptive quadrature with one point). Hedeker (2015) recommends more points, which glmmTMB and lme4 do not
+    offer for crossed random effects. A learner has a median of only 6 task-items in a task condition, and a
+    task-item about 19 responses. A first version of this item, written earlier on 16 November, said the
+    approximation was not the problem; (a) shows why that was wrong.
+    (a) One component at a time. Refitting each component alone on the real responses, with every other term of
+    the glmmTMB fit in an offset, lme4 gives the same SD with Laplace and with 25-point adaptive quadrature, to
+    within 0.4%. But holding the other effects at their estimates removes their uncertainty, so this check misses
+    the joint error.
     (b) The estimates. In a parametric bootstrap (100 data sets simulated from the fitted calibration model with
     all 21 learners, refitted; 95 binary and 92 graded fits converged), the estimated SDs are on average this
     share of the ones simulated from: binary, learner by family 0.88, learner by condition 0.90, item 0.89,
-    condition 0.95, task family 0.63 (about 10 families); graded, 0.90, 0.95, 0.95, 0.96 and 0.82. The learner
-    SDs are too small in 97% of binary replicates (Monte Carlo SE of each ratio 0.006-0.03). The instance SD,
-    simulated as zero, comes back at 0.36 (binary) and 0.22 (graded), so some variance moves between nested
-    components. The learner abilities are not distorted (their spread 1.00 of the truth, correlation 0.97). So
-    the shortfall is mostly the small-sample bias of maximum likelihood (no REML for binomial models), not the
-    approximation.
-    (c) What it changes. Rerunning the binary bifactor adaptive test with the two specific SDs scaled up by the
-    bootstrap's factors (1.14 and 1.12; BCAT_SF_SCALE, BCAT_SC_SCALE; output/v21/bifactor_cat_*_sdadj.*) leaves
-    the full-bank abilities nearly unchanged (correlation 0.999, largest change 0.23 logits) and raises their
-    posterior SDs by about a tenth (mean 0.57 to 0.63 logits, range 0.36-1.06). The adaptive posterior SDs rise
-    by 5-10%, and the share of errors within 1.96 posterior SDs at 5 and 10 items rises from 0.94 to 0.98 and
-    0.95; mean errors move both ways (bifactor selection at 10 items 0.98 to 0.85 logits, at 20 items 0.50 to
-    0.58). So the uncorrected posterior SDs are slightly too small, and the bank pins a learner down less well
-    than the uncorrected figures say, but the abilities and the comparisons between rules stand. The graded
-    calibration is less biased (0.90 and 0.95) and was not rerun.
+    condition 0.95, task family 0.63 (16 families); graded, 0.90, 0.95, 0.95, 0.96 and 0.82. The learner SDs are
+    too small in 97% of binary replicates (Monte Carlo SE of each ratio 0.006-0.03). The instance SD, simulated
+    as zero, comes back at 0.36 (binary) and 0.22 (graded). The learner abilities are not distorted (their spread
+    1.00 of the truth, correlation 0.97).
+    (c) The joint approximation, by TMB's checkConsistency (200 data sets simulated from the fitted model, the
+    gradient of the Laplace marginal likelihood at the true parameters; the importance criterion and the
+    instance effect left out so that the Hessian is not singular). Under an exact likelihood that gradient
+    averages zero whatever the small-sample bias; here the test rejects (p < 0.001). Its first-order estimate of
+    the bias the approximation adds, as a factor on each SD: learner by family 0.90, learner by condition 0.88,
+    item 0.91, condition 0.96, task family 0.98. These match the bootstrap's ratios in (b) except for task family,
+    whose 0.63 is the small-sample bias of maximum likelihood with 16 families. So the approximation accounts for
+    nearly all the shortfall in the item, learner-by-family and learner-by-condition SDs.
+    (d) An own solver (R/10_partial_laplace.R). It integrates the learner-by-family and learner-by-condition
+    effects exactly, by Gauss-Hermite quadrature nested in quadrature (the likelihood factors over those clusters
+    once the task-side effects are given), and applies Laplace only to the task-side effects. Hand-written
+    gradient and Hessian, checked against finite differences (relative error 10^-10); quadrature checked against
+    adaptive integration on single clusters and 30 against 45 points (0.01 apart); agrees with glmmTMB to 0.008
+    when the learner SDs are near zero. On a 5 x 5 grid around glmmTMB's estimates, with every other parameter
+    held at its estimate, its log-likelihood is 29-41 higher than Laplace's and rises with the SDs, and its
+    maximum lies at learner-by-family SD 2.15 against 2.07 (x 1.04) and learner-by-condition SD 1.75 against 1.64
+    (x 1.07), the same on the inner 3 x 3. That is about half the shortfall in (c); the rest presumably comes
+    from the Laplace approximation over the item effects, which rest on about 19 binary responses each and which
+    this solver still approximates. Two first attempts failed: importance sampling around the Laplace mode (the
+    weights collapsed onto one draw in 40, over 881 or 3,095 dimensions), and a TMB template for the nested
+    quadrature (automatic differentiation of the nested integrals ran out of memory even with 3 points).
+    (e) What it changes. Rerunning the binary bifactor adaptive test with the two learner SDs scaled up by the
+    bootstrap's factors (1.14 and 1.12; BCAT_SF_SCALE, BCAT_SC_SCALE; output/v21/bifactor_cat_*_sdadj.*) corrects
+    the total shortfall whatever its source. It leaves the full-bank abilities nearly unchanged (correlation
+    0.999, largest change 0.23 logits) and raises their posterior SDs by about a tenth (mean 0.57 to 0.63 logits,
+    range 0.36-1.06). The adaptive posterior SDs rise by 5-10%, and the share of errors within 1.96 posterior SDs
+    at 5 and 10 items rises from 0.94 to 0.98 and 0.95; mean errors move both ways (bifactor selection at 10 items
+    0.98 to 0.85 logits, at 20 items 0.50 to 0.58). So the uncorrected posterior SDs are slightly too small, but
+    the abilities and the comparisons between rules stand. The multilevel Rasch models of R/03_irt.R use the same
+    approximation, so their variance components are presumably too small by a similar amount; their abilities
+    should be little affected. The graded calibration's shortfall is smaller (0.90 and 0.95) and was not
+    corrected. A fully exact fit (all random effects integrated) would need MCMC or Monte Carlo EM; not done.

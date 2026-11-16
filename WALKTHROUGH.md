@@ -423,14 +423,15 @@ adaptively with the calibration from the others (section 7).
   kept out of it for that reason).
 - **Local dependence is large.** Treating the 469 task-items as independent overstates the precision of
   any ability estimate; model the nesting.
-- **The variance components are about 10% too small.** The calibrations use the Laplace approximation
-  (glmmTMB), and Hedeker (2015) recommends adaptive quadrature with several points, which is not available for
-  crossed random effects. `R/09_laplace_check.R` finds that the approximation is not the problem: refitted one
-  component at a time, Laplace and 25-point adaptive quadrature agree to within 0.4%. But in a parametric
-  bootstrap the learner-by-family and learner-by-condition SDs come back at 0.88 and 0.90 of the true values
-  (binary), the small-sample bias of maximum likelihood. Scaling them up by those factors leaves the abilities
-  almost unchanged (correlation 0.999) and raises the full bank's posterior SDs by about a tenth (mean 0.57 to
-  0.63 logits), and the adaptive posterior SDs by 5–10% (`FLAGS.md` item 25).
+- **The variance components are about 10% too small, mainly because of the Laplace approximation.** The
+  calibrations use glmmTMB's Laplace approximation, and Hedeker (2015) recommends adaptive quadrature with several
+  points, which is not available for crossed random effects. In a parametric bootstrap the learner-by-family and
+  learner-by-condition SDs come back at 0.88 and 0.90 of the true values (binary). TMB's consistency check puts
+  nearly all of that on the approximation (factors 0.90 and 0.88). `R/10_partial_laplace.R`, which integrates the
+  learner-side effects exactly by nested quadrature, moves the two SDs up by 4% and 7%; the rest presumably comes
+  from the Laplace approximation over the item effects. Scaling the SDs up by the bootstrap's factors leaves the
+  abilities almost unchanged (correlation 0.999) and raises the full bank's posterior SDs by about a tenth (mean
+  0.57 to 0.63 logits), and the adaptive posterior SDs by 5–10% (`FLAGS.md` item 25).
 - **Location-scale models.** A mixed-effects location-scale model of draw-to-draw variability (Hedeker,
   Mermelstein and Demirtas 2008; fitted with Wu and Hedeker's 2026 melsvmp) was degenerate on these data
   (`R/04*`, `FLAGS.md` item 16).
