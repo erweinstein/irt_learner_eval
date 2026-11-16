@@ -88,6 +88,9 @@ Added on 16 November (after Gibbons et al. 2024 and Hedeker 2015; FLAGS.md 24-25
 - **Known-groups check.** `R/06b_known_groups.R`: does the adaptive score rank the tuned boosters above their
   defaults (`output/v21/known_groups.csv`)?
 - **Flipped models with graded responses.** `R/03b_graded_bifactor.R` (`output/v21/irt_B_graded_*.csv`).
+- **Laplace check.** `R/09_laplace_check.R`: a parametric bootstrap of the calibration model and Laplace against
+  adaptive quadrature (`output/v21/laplace_*.csv`); `BCAT_SF_SCALE` and `BCAT_SC_SCALE` rerun the adaptive test
+  with the bias-corrected SDs (`output/v21/bifactor_cat_*_sdadj.*`).
 
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from

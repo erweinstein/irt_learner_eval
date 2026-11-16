@@ -272,10 +272,31 @@
     by 1.2-2.5 SD of the 21 full-bank abilities; with bifactor selection the difference exceeds 1.96 posterior SDs
     in every run from 20 items on. The differences are large, so this shows the score is not broken more than
     that it is sensitive.
-25. **The calibrations use the Laplace approximation.** Every glmmTMB fit here (the multilevel Rasch models and
-    the adaptive tests' calibrations) uses the Laplace approximation, which is adaptive quadrature with one
-    point. Hedeker (2015) recommends adaptive quadrature with more points, which glmmTMB and lme4 do not offer
-    for crossed random effects. With binary responses and few task-items per learner and condition, Laplace can
-    understate variance components, which would make the learner-by-family and learner-by-condition SDs, and so
-    the bifactor adaptive test's posterior SDs, too small. Not checked; a check would be to refit one calibration
-    by MCMC or with a nested-only structure that allows more quadrature points.
+25. **The calibrations use the Laplace approximation; the variance components are about 10% too small, but not
+    because of it (checked 16 November; R/09_laplace_check.R, output/v21/laplace_*.csv).** Every glmmTMB fit
+    here uses the Laplace approximation, which is adaptive quadrature with one point. Hedeker (2015) recommends
+    more points, which glmmTMB and lme4 do not offer for crossed random effects, and a learner has a median of
+    only 6 task-items in a task condition.
+    (a) The approximation. Refitting each component alone on the real responses, with every other term of the
+    glmmTMB fit in an offset, lme4 gives the same SD with the Laplace approximation and with 25-point adaptive
+    quadrature, to within 0.4% (learner by condition 0.980 against 0.984; learner by family, item and condition
+    equal to three decimals). This checks one component at a time, not the joint integral over the crossed
+    effects, which no software here computes.
+    (b) The estimates. In a parametric bootstrap (100 data sets simulated from the fitted calibration model with
+    all 21 learners, refitted; 95 binary and 92 graded fits converged), the estimated SDs are on average this
+    share of the ones simulated from: binary, learner by family 0.88, learner by condition 0.90, item 0.89,
+    condition 0.95, task family 0.63 (about 10 families); graded, 0.90, 0.95, 0.95, 0.96 and 0.82. The learner
+    SDs are too small in 97% of binary replicates (Monte Carlo SE of each ratio 0.006-0.03). The instance SD,
+    simulated as zero, comes back at 0.36 (binary) and 0.22 (graded), so some variance moves between nested
+    components. The learner abilities are not distorted (their spread 1.00 of the truth, correlation 0.97). So
+    the shortfall is mostly the small-sample bias of maximum likelihood (no REML for binomial models), not the
+    approximation.
+    (c) What it changes. Rerunning the binary bifactor adaptive test with the two specific SDs scaled up by the
+    bootstrap's factors (1.14 and 1.12; BCAT_SF_SCALE, BCAT_SC_SCALE; output/v21/bifactor_cat_*_sdadj.*) leaves
+    the full-bank abilities nearly unchanged (correlation 0.999, largest change 0.23 logits) and raises their
+    posterior SDs by about a tenth (mean 0.57 to 0.63 logits, range 0.36-1.06). The adaptive posterior SDs rise
+    by 5-10%, and the share of errors within 1.96 posterior SDs at 5 and 10 items rises from 0.94 to 0.98 and
+    0.95; mean errors move both ways (bifactor selection at 10 items 0.98 to 0.85 logits, at 20 items 0.50 to
+    0.58). So the uncorrected posterior SDs are slightly too small, and the bank pins a learner down less well
+    than the uncorrected figures say, but the abilities and the comparisons between rules stand. The graded
+    calibration is less biased (0.90 and 0.95) and was not rerun.
