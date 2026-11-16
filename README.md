@@ -80,6 +80,15 @@ Added on 13 November:
   (`R/07d_tabpfn_log_sensitivity.R`: 2nd instead of 4th with log(1 + y) on spending). The check finished on
   15 November: the 8-member ensemble on log(1 + y) does little better than one member on log(1 + y).
 
+Added on 16 November (after Gibbons et al. 2024 and Hedeker 2015; FLAGS.md 24-25):
+
+- **Graded bifactor adaptive test.** `BCAT_GRADED=1` with `R/06_bifactor_cat.R` scores responses 0/1/2 with a
+  continuation-ratio logit (`output/v21/bifactor_cat_*_graded.*`); `R/06c_graded_step_test.R` tests its
+  equal-effects assumption and reports ICCs.
+- **Known-groups check.** `R/06b_known_groups.R`: does the adaptive score rank the tuned boosters above their
+  defaults (`output/v21/known_groups.csv`)?
+- **Flipped models with graded responses.** `R/03b_graded_bifactor.R` (`output/v21/irt_B_graded_*.csv`).
+
 `R/00_learners.R` defines the learners (the original 14, and five added on 11 November: LightGBM,
 CatBoost, BART, RealMLP and TabPFN v2; the last three Python ones run through reticulate from
 `py/learners_py.py`) and `R/01_tasks.R` the 95 task conditions. The MEPS tasks

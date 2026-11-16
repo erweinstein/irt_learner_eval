@@ -295,6 +295,17 @@ without two of them. TabPFN's slope is near zero (0.13, SE 0.20): whether it suc
 easiness the way the other learners' successes do. It passes accuracy criteria often but underpredicts the
 mean on spending and counts (`FLAGS.md` item 21).
 
+**Graded responses** (`R/03b_graded_bifactor.R`; 21 learners, `output/v21/irt_B_graded_*.csv`). Scoring each
+response 0 (clearly fails), 1 (near the criterion) or 2 (meets it) instead of pass/fail, as Gibbons et al.
+(2024) did with their items, does not change the comparison of models. Within each scoring, three exploratory
+factors fit best by BIC, and the bifactor with the learner groups fixed in advance comes next (112 BIC points
+behind with binary scoring, 294 with graded). Gibbons et al. found the reverse, but their domains were built
+into the item bank; my learner groups are my own grouping of the learners. The loadings on the general factor
+hardly change (correlation 0.94 between the two scorings), and the general scores correlate 0.95; its
+marginal reliability rises from 0.88 to 0.91. The elastic net is a near-Heywood case under both scorings
+(communality 0.998; intercept 22 binary, 69 graded), so its loadings should not be read closely
+(`FLAGS.md` item 24).
+
 ## 7. Choosing tasks adaptively (`R/05_cat.R`, `R/06_bifactor_cat.R`)
 
 A new learner should not need the whole bank if each next task-item can be chosen to be the most
@@ -341,6 +352,47 @@ random selection in 62 of 190. In the runs that reached it, they needed a median
 So most runs of every rule did not reach the target, and those medians understate the items it takes. But under the bifactor model even the full bank pins a
 learner down only to a posterior SD of 0.39–1.01 logits. The bank is less informative than its 469 items suggest.
 
+**Graded responses** (`BCAT_GRADED=1 Rscript R/06_bifactor_cat.R`; 21 learners, `output/v21/bifactor_cat_*_graded.*`).
+Gibbons et al. (2024) found that scoring each item 0–3 instead of as three binary trials widened the range of
+thresholds and added precision for the most impaired. Here each response is scored 0, 1 or 2 as in section 6,
+and the item model is a continuation-ratio logit (Ten Have and Uttal 1994), with step thresholds $\tau$ for
+each criterion $k$:
+
+**Level 1:** $\operatorname{logit} P(Y_{li} \ge 1) = \theta_l + u_{lf} + w_{lc} + e_i + \tau_{1k}$; $\quad\operatorname{logit} P(Y_{li} = 2 \mid Y_{li} \ge 1) = \theta_l + u_{lf} + w_{lc} + e_i + \tau_{2k}$
+
+**Level 2:** as above.
+
+Its likelihood is the product of the two binary steps, so the same glmmTMB calibration is fitted to the
+stacked steps. Each scoring is compared with its own full-bank ability (mean distance in logits, with the
+Pearson correlation in parentheses, the measure Gibbons et al. report):
+
+| Items given | Binary, bifactor | Graded, bifactor | Binary, random | Graded, random |
+|---|---|---|---|---|
+| 10 | 0.98 (0.84) | 0.70 (0.89) | 0.88 (0.85) | 0.80 (0.87) |
+| 20 | 0.50 (0.95) | 0.53 (0.94) | 0.66 (0.92) | 0.59 (0.93) |
+| 80 | 0.20 (0.99) | 0.27 (0.98) | 0.33 (0.98) | 0.29 (0.98) |
+
+Graded scoring pins the full bank down a little better (mean posterior SD 0.50 against 0.57 logits; marginal
+reliability 0.94 against 0.92), and most of the gain is at the low end, as Gibbons et al. found: the
+posterior SD about halves for the weakest learners (xgb_default 0.56 to 0.30, default CatBoost 0.64 to 0.32)
+and hardly changes for the strongest. It removes the binary test's weakness at 10 items, but from 20 items on
+it is no more accurate. The graded and binary full-bank abilities correlate 0.98.
+
+The graded model assumes that a learner's effect is the same at both steps, the analogue of the proportional
+odds assumption. `R/06c_graded_step_test.R` tests it as Hedeker (2015) does, by a likelihood ratio test against
+step-specific learner effects. The test rejects it ($\chi^2_{20} = 172$), but BIC prefers the simpler model
+(11,299 against 11,320; AIC the reverse), and the two steps' learner effects correlate 0.93. The largest
+departures are TabPFN (weak at getting out of "clearly fails", strong at going from "near" to "meets"),
+default CatBoost (the reverse), the GAM and the neural network.
+
+**A known-groups check** (`R/06b_known_groups.R`, `output/v21/known_groups.csv`). Gibbons et al. checked that
+their adaptive score separates people with mild cognitive impairment from those without (1.08 SD). The groups
+known here by construction are the tuned and default versions of xgboost, LightGBM and CatBoost: the tuned
+version should score higher. With binary scoring, every run of every rule ranks the tuned version higher from
+10 items on, by 1.2–2.5 SD of the 21 full-bank abilities, and with bifactor selection the difference exceeds
+1.96 posterior SDs in every run from 20 items on. Tuning matters a lot on these tasks, so this shows the score
+is not broken more than that it is sensitive.
+
 ## 8. Adding a learner of your own
 
 1. Add a branch to `fit_predict()` in `R/00_learners.R` (or to `py/learners_py.py` for a Python
@@ -371,6 +423,10 @@ adaptively with the calibration from the others (section 7).
   kept out of it for that reason).
 - **Local dependence is large.** Treating the 469 task-items as independent overstates the precision of
   any ability estimate; model the nesting.
+- **The calibrations use the Laplace approximation** (glmmTMB). Hedeker (2015) recommends adaptive quadrature
+  with several points, which is not available for crossed random effects in glmmTMB or lme4. With binary
+  responses and a few task-items per learner and condition, Laplace can understate the variance components,
+  and so the bifactor test's posterior SDs (`FLAGS.md` item 25).
 - **Location-scale models.** A mixed-effects location-scale model of draw-to-draw variability (Hedeker,
   Mermelstein and Demirtas 2008; fitted with Wu and Hedeker's 2026 melsvmp) was degenerate on these data
   (`R/04*`, `FLAGS.md` item 16).
@@ -421,6 +477,8 @@ adaptively with the calibration from the others (section 7).
   Translational Research & Clinical Interventions* 10, e70018.
 - Hedeker, D. (2008). Multilevel models for ordinal and nominal variables. In J. de Leeuw and E. Meijer
   (eds.), *Handbook of Multilevel Analysis*, 237–274. Springer.
+- Hedeker, D. (2015). Methods for multilevel ordinal data in prevention research. *Prevention Science* 16,
+  997–1006.
 - Hedeker, D., R. J. Mermelstein and H. Demirtas (2008). An application of a mixed-effects location scale
   model for analysis of ecological momentary assessment (EMA) data. *Biometrics* 64(2), 627–634.
 - Hollmann, N., S. Müller, L. Purucker, A. Krishnakumar, M. Körfer, S. B. Hoo, R. T. Schirrmeister and

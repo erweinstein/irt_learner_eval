@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-25 on 16 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -240,3 +240,42 @@
     left out. For the original 14 the within-condition moments are unchanged (the same responses); the
     between-condition moments move by -0.12 to +0.20, because each cell mean is centred on the condition's mean
     over all learners, which now includes five more.
+24. **Graded responses and a known-groups check (16 November; after Gibbons et al. 2024).**
+    (a) A graded version of the bifactor adaptive test (BCAT_GRADED=1 R/06_bifactor_cat.R; 21 learners;
+    output/v21/bifactor_cat_*_graded.*) scores each response 0 = clearly fails, 1 = near the criterion, 2 = meets
+    it, with a continuation-ratio logit calibrated by glmmTMB on the stacked steps. A calibration slope that
+    cannot be computed (14 responses, cart and gam) counts as 0. Against each scoring's own full bank: at 10
+    items, mean error 0.70 logits graded against 0.98 binary (Pearson 0.89 against 0.84); at 20 items 0.53
+    against 0.50; at 80 items 0.27 against 0.20. The full bank's mean posterior SD falls from 0.57 to 0.50
+    (marginal reliability 0.92 to 0.94), most for the weakest learners (xgb_default 0.56 to 0.30, default
+    CatBoost 0.64 to 0.32; Spearman 0.53 between ability and the ratio of posterior SDs). So graded scoring helps
+    short tests and the low end, and is no more accurate from 20 items on. Coverage of the error by 1.96
+    posterior SDs is 0.92-0.98 for graded bifactor selection, against 0.94-1.00 binary, so the graded posterior
+    SDs may be a little small (see 25). Rasch-information selection is worse graded (Pearson 0.52 at 10 items).
+    (b) The graded model assumes the same learner effect at both steps (the analogue of proportional odds).
+    The likelihood ratio test of Hedeker (2015) against step-specific learner effects rejects it (chi-square
+    172 on 20 df; R/06c_graded_step_test.R, output/v21/graded_step_test.csv), though BIC prefers the simpler
+    model (11,299 against 11,320) and the two steps' effects correlate 0.93. TabPFN departs most (0.85 at step 1,
+    2.36 at step 2, centred), then default CatBoost (-0.93, -2.81), the GAM and the neural network. ICCs on the
+    logistic scale (pi^2/3 at level 1; output/v21/graded_icc.csv): task family 0.21, condition 0.19, item 0.12,
+    learner by family 0.16, learner by condition 0.15; the instance variance is estimated at zero.
+    (c) Flipped models with graded responses (R/03b_graded_bifactor.R; output/v21/irt_B_graded_fit.csv,
+    irt_B_graded_bifactor.csv): three exploratory factors fit best by BIC in both scorings, and the bifactor with
+    the learner groups fixed in advance is 112 (binary) and 294 (graded) BIC points behind. Unlike Gibbons et al.,
+    whose domains were built into the item bank, my learner groups are a post hoc grouping. General-factor
+    loadings correlate 0.94 between scorings (range 0.22-0.90 graded, 0.21-0.93 binary), general scores 0.95,
+    and the general score's marginal reliability rises from 0.88 to 0.91 (scored by quasi-Monte Carlo). The
+    elastic net is a near-Heywood case in both (communality 0.998; intercept 22 binary, 69 graded), and lasso and
+    ridge are close (0.95-0.97), so their loadings are poorly determined.
+    (d) Known groups (R/06b_known_groups.R, output/v21/known_groups.csv): in the binary leave-one-out runs, every
+    run of every selection rule ranks tuned xgboost, LightGBM and CatBoost above their defaults from 10 items on,
+    by 1.2-2.5 SD of the 21 full-bank abilities; with bifactor selection the difference exceeds 1.96 posterior SDs
+    in every run from 20 items on. The differences are large, so this shows the score is not broken more than
+    that it is sensitive.
+25. **The calibrations use the Laplace approximation.** Every glmmTMB fit here (the multilevel Rasch models and
+    the adaptive tests' calibrations) uses the Laplace approximation, which is adaptive quadrature with one
+    point. Hedeker (2015) recommends adaptive quadrature with more points, which glmmTMB and lme4 do not offer
+    for crossed random effects. With binary responses and few task-items per learner and condition, Laplace can
+    understate variance components, which would make the learner-by-family and learner-by-condition SDs, and so
+    the bifactor adaptive test's posterior SDs, too small. Not checked; a check would be to refit one calibration
+    by MCMC or with a nested-only structure that allows more quadrature points.
