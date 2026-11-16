@@ -311,7 +311,7 @@ are 2.2 and 1.7 logits, larger than the spread of the abilities (SD 1.4 in the m
 go together beyond its overall ability.
 
 **Bifactor selection** (`06_bifactor_cat.R`) handles this, as Gibbons's adaptive tests handle subdomains
-(Gibbons et al. 2020; Tseng et al. 2026). Each item measures the primary ability and a specific dimension,
+(Gibbons et al. 2020, 2024; Tseng et al. 2026). Each item measures the primary ability and a specific dimension,
 and the primary score integrates the specific dimensions out (Gibbons et al. 2007, eqs. 17–18). A handful
 of calibration learners cannot estimate loadings, so every loading is fixed at 1 (a Rasch testlet version
 of the bifactor model), with two nested specific dimensions:
@@ -416,6 +416,11 @@ adaptively with the calibration from the others (section 7).
   T. L. Moore, J. B. Kim and D. A. Brent (2020). Computerized adaptive tests for rapid and accurate
   assessment of psychopathology dimensions in youth. *Journal of the American Academy of Child &
   Adolescent Psychiatry* 59(11), 1264–1273.
+- Gibbons, R. D., D. S. Lauderdale, R. S. Wilson, D. A. Bennett, T. Arar and D. A. Gallo (2024). Adaptive
+  measurement of cognitive function based on multidimensional item response theory. *Alzheimer's & Dementia:
+  Translational Research & Clinical Interventions* 10, e70018.
+- Hedeker, D. (2008). Multilevel models for ordinal and nominal variables. In J. de Leeuw and E. Meijer
+  (eds.), *Handbook of Multilevel Analysis*, 237–274. Springer.
 - Hedeker, D., R. J. Mermelstein and H. Demirtas (2008). An application of a mixed-effects location scale
   model for analysis of ecological momentary assessment (EMA) data. *Biometrics* 64(2), 627–634.
 - Hollmann, N., S. Müller, L. Purucker, A. Krishnakumar, M. Körfer, S. B. Hoo, R. T. Schirrmeister and
@@ -424,6 +429,8 @@ adaptively with the calibration from the others (section 7).
 - Martínez-Plumed, F., R. B. C. Prudêncio, A. Martínez-Usó and J. Hernández-Orallo (2016). Making sense of
   item response theory in machine learning. *Frontiers in Artificial Intelligence and Applications* 285,
   1140–1148.
+- Ten Have, T. R. and D. H. Uttal (1994). Subject-specific and population-averaged continuation ratio logit
+  models for multiple discrete time survival profiles. *Applied Statistics* 43, 371–384.
 - Tseng, A., A. Yang, L. Mandocescu, R. D. Gibbons and S. Jacob (2026). Computerized adaptive tests for
   rapid and accurate assessment of autism. *JAMA Network Open* 9(7), e2622227.
 - Wu, B. P.-H. and D. Hedeker (2026). Fast estimation and valid statistical inference for mixed-effect

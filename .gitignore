@@ -12,3 +12,5 @@ __pycache__/
 # MEPS files are never committed (AHRQ data use agreement)
 *.dta
 meps_ml.csv
+output/**/bcat_parts*/
+logs_*.log

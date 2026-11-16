@@ -29,6 +29,16 @@
 # be reached; NA = not reached in 80 items).
 # Output: output/bifactor_cat_results.csv, output/bifactor_cat_summary.csv, output/fig_bifactor_cat.png
 #
+# Graded version (BCAT_GRADED=1; 16 November 2026, after Gibbons et al. 2024, who found that scoring each item 0-3
+# instead of as three binary trials widened the range of thresholds and added precision at the low end): each
+# response is scored 0 = clearly fails, 1 = near the criterion, 2 = meets it, as in the graded model of 03_irt.R
+# (a calibration slope that cannot be computed counts as 0), and the item model is a continuation-ratio logit
+# (Ten Have and Uttal 1994, in mixed-model form; Hedeker 2008, sec. 6.4), with the same learner effects at both steps:
+#   logit P(Y_li >= 1)          = theta_l + u_l,f(i) + w_l,c(i) + e_i + tau_1,k(i)
+#   logit P(Y_li = 2 | Y_li >= 1) = theta_l + u_l,f(i) + w_l,c(i) + e_i + tau_2,k(i)
+# with step thresholds tau for each criterion k. Its likelihood is that of the two binary steps, so it is
+# calibrated with the same glmmTMB model on the stacked steps. Output files end in _graded.
+#
 # Eliot R. Weinstein
 # eliotw@uchicago.edu
 # erweinstein.com
@@ -40,6 +50,19 @@ RNGkind("L'Ecuyer-CMRG"); set.seed(806)
 OUT <- Sys.getenv("IRT_OUT", "output"); dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 R <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses.csv"), stringsAsFactors = FALSE)
 R <- R[is.finite(R$pass), ]
+GRADED <- Sys.getenv("BCAT_GRADED", "0") == "1"; SUF <- if (GRADED) "_graded" else ""
+if (GRADED) {   # the graded scoring of 03_irt.R
+  grade <- function(r) { s <- r$score; c0 <- r$criterion
+    ifelse(is.na(r$pass), NA, ifelse(r$pass == 1, 2,
+      ifelse(c0 == "acc" & r$source != "real" & r$type == "binary", as.integer(s >= 0.75),
+      ifelse(c0 == "acc" & r$source != "real", as.integer(s >= 0.6),
+      ifelse(c0 == "acc", as.integer(s >= -0.03),
+      ifelse(c0 == "cal" & r$type == "binary", as.integer(s >= 0.65 & s <= 1.5),
+      ifelse(c0 == "cal", as.integer(abs(s - 1) <= 0.2),
+      ifelse(c0 == "imp", as.integer(s >= 2), ifelse(c0 == "eff", as.integer(s <= 1.10), as.integer(abs(s) <= 2.58)))))))))) }
+  R$grade <- grade(R); R$grade[is.na(R$grade) & R$pass == 0] <- 0
+}
+YV <- if (GRADED) 0:2 else 0:1
 R$item <- paste(R$inst, R$criterion, sep = ":")
 R$task_family <- ifelse(R$family == "real", paste0("real_", R$type), R$family)
 R$lf <- paste(R$learner, R$task_family); R$lc <- paste(R$learner, R$cond)
@@ -71,9 +94,19 @@ make_state <- function(it, sf, sc) {
 }
 post_of <- function(logL, lprior) { lp <- logL + lprior; w <- exp(lp - max(lp)); w / sum(w) }
 mv <- function(w) { m <- sum(w * g); c(eap = m, psd = sqrt(sum(w * (g - m)^2))) }
+# log P(y | S) for item i; S is the linear predictor without the item (array or vector)
+item_lp <- function(S, it, i, y) {
+  a <- S + it$e1[i]
+  if (!GRADED) return(if (y == 1) plogis(a, log.p = TRUE) else plogis(-a, log.p = TRUE))
+  if (y == 0) return(plogis(-a, log.p = TRUE))
+  b <- S + it$e2[i]; plogis(a, log.p = TRUE) + (if (y == 2) plogis(b, log.p = TRUE) else plogis(-b, log.p = TRUE))
+}
+# information about theta at th, without the specific dimensions (used to screen and for Rasch selection)
+info_at <- function(th, it, idx) { p1 <- plogis(th + it$e1[idx])
+  if (!GRADED) return(p1 * (1 - p1)); p2 <- plogis(th + it$e2[idx]); p1 * (1 - p1) + p1 * p2 * (1 - p2) }
 add_item <- function(st, it, i, y) {
   c0 <- as.character(it$cond[i]); f0 <- it$fam[i]
-  lp <- if (y == 1) plogis(st$S + it$e[i], log.p = TRUE) else plogis(-(st$S + it$e[i]), log.p = TRUE)
+  lp <- item_lp(st$S, it, i, y)
   st$logB[[c0]] <- st$logB[[c0]] + lp
   Anew <- lse_last(st$logB[[c0]] + lq3)
   st$logP[[f0]] <- st$logP[[f0]] - st$A[[c0]] + Anew; st$A[[c0]] <- Anew
@@ -88,8 +121,8 @@ exp_var <- function(st, it, cand, lprior) {
     ii <- cand[as.character(it$cond[cand]) == c0]; f0 <- it$fam[ii[1]]
     for (j in seq_along(ii)) {
       ev <- 0
-      for (y in 0:1) {
-        lp <- if (y == 1) plogis(st$S + it$e[ii[j]], log.p = TRUE) else plogis(-(st$S + it$e[ii[j]]), log.p = TRUE)
+      for (y in YV) {
+        lp <- item_lp(st$S, it, ii[j], y)
         An <- lse_last(st$logB[[c0]] + lp + lq3)
         Fn <- lse_last(st$logP[[f0]] - st$A[[c0]] + An + lq2)
         ratio <- exp(Fn - st$logF[[f0]])                       # P(y | theta, answers so far)
@@ -108,13 +141,13 @@ run_rule <- function(rule, it, y, sf, sc, lprior, psd_full) {
     free <- setdiff(seq_len(nrow(it)), used)
     if (rule == "random") nxt <- free[sample.int(length(free), 1)]
     if (rule == "rasch_max_info") {
-      th <- mv(post_of(st$logL, lprior))[["eap"]]; inf <- plogis(th + it$e[free]); inf <- inf * (1 - inf)
+      th <- mv(post_of(st$logL, lprior))[["eap"]]; inf <- info_at(th, it, free)
       cand <- free[inf >= max(inf) - 1e-12]; nxt <- cand[sample.int(length(cand), 1)]
     }
     if (rule == "bifactor") {
       # screen to the 40 items with most Rasch information at the current estimate, plus 20 at random, before
       # the exact (slower) preposterior calculation
-      th <- mv(post_of(st$logL, lprior))[["eap"]]; inf <- plogis(th + it$e[free]); inf <- inf * (1 - inf)
+      th <- mv(post_of(st$logL, lprior))[["eap"]]; inf <- info_at(th, it, free)
       cand <- unique(c(free[order(-inf)][seq_len(min(40, length(free)))], free[sample.int(length(free), min(20, length(free)))]))
       ev <- exp_var(st, it, cand, lprior); o <- order(ev)
       nxt <- if (length(o) > 1 && runif(1) < 0.2) cand[o[2]] else cand[o[1]]
@@ -130,18 +163,26 @@ run_rule <- function(rule, it, y, sf, sc, lprior, psd_full) {
 
 one_learner <- function(lo) {
   Rc <- R[R$learner != lo, ]; Rc$learner <- factor(Rc$learner)
-  fit <- glmmTMB(pass ~ 0 + learner + criterion + (1 | task_family) + (1 | cond) + (1 | inst) + (1 | item) +
+  if (GRADED) {   # the two continuation-ratio steps, stacked
+    s2 <- Rc[Rc$grade >= 1, ]
+    Rc <- rbind(transform(Rc, y = as.integer(grade >= 1), crit = paste(criterion, "s1")),
+                transform(s2, y = as.integer(grade == 2), crit = paste(criterion, "s2")))
+  } else { Rc$y <- Rc$pass; Rc$crit <- Rc$criterion }
+  fit <- glmmTMB(y ~ 0 + learner + crit + (1 | task_family) + (1 | cond) + (1 | inst) + (1 | item) +
                    (1 | lf) + (1 | lc), Rc, binomial)
   fe <- glmmTMB::fixef(fit)$cond; re <- glmmTMB::ranef(fit)$cond; vc <- glmmTMB::VarCorr(fit)$cond
   sf <- unname(attr(vc$lf, "stddev")); sc <- unname(attr(vc$lc, "stddev"))
   th <- fe[grepl("^learner", names(fe))]
   it <- unique(R[R$learner == lo, c("item", "inst", "cond", "task_family", "criterion")]); names(it)[4] <- "fam"
-  cn <- sub("^criterion", "", names(fe)[grepl("^criterion", names(fe))])
-  ce <- setNames(c(0, fe[grepl("^criterion", names(fe))]), c(setdiff(sort(unique(Rc$criterion)), cn)[1], cn))
+  cn <- sub("^crit", "", names(fe)[grepl("^crit", names(fe))])
+  ce <- setNames(c(0, fe[grepl("^crit", names(fe))]), c(setdiff(sort(unique(Rc$crit)), cn)[1], cn))
   pick <- function(tab, key) { v <- tab[[1]]; out <- v[match(key, rownames(tab))]; out[is.na(out)] <- 0; out }
-  it$e <- unname(ce[it$criterion] + pick(re$task_family, it$fam) + pick(re$cond, as.character(it$cond)) +
-                 pick(re$inst, it$inst) + pick(re$item, it$item))
-  y <- R$pass[R$learner == lo][match(it$item, R$item[R$learner == lo])]
+  eb <- unname(pick(re$task_family, it$fam) + pick(re$cond, as.character(it$cond)) + pick(re$inst, it$inst) +
+               pick(re$item, it$item))
+  if (GRADED) { it$e1 <- eb + unname(ce[paste(it$criterion, "s1")]); it$e2 <- eb + unname(ce[paste(it$criterion, "s2")])
+  } else it$e1 <- eb + unname(ce[it$criterion])
+  stopifnot(all(is.finite(it$e1)))
+  y <- (if (GRADED) R$grade else R$pass)[R$learner == lo][match(it$item, R$item[R$learner == lo])]
   lprior <- dnorm(g, mean(th), sd(th), log = TRUE)
   st <- make_state(it, sf, sc); for (i in seq_len(nrow(it))) st <- add_item(st, it, i, y[i])
   full <- mv(post_of(st$logL, lprior))
@@ -162,21 +203,22 @@ one_learner <- function(lo) {
 
 ONLY <- Sys.getenv("BCAT_ONLY", "")
 todo <- if (ONLY == "") LEARNERS else strsplit(ONLY, ",")[[1]]
-dir.create(file.path(OUT, "bcat_parts"), showWarnings = FALSE)
-invisible(mclapply(todo, function(lo) { f <- file.path(OUT, "bcat_parts", paste0(lo, ".csv"))
+PARTS <- file.path(OUT, paste0("bcat_parts", SUF)); dir.create(PARTS, showWarnings = FALSE)
+invisible(mclapply(todo, function(lo) { f <- file.path(PARTS, paste0(lo, ".csv"))
   if (!file.exists(f)) write.csv(one_learner(lo), f, row.names = FALSE) }, mc.cores = 2, mc.preschedule = FALSE))
-parts <- list.files(file.path(OUT, "bcat_parts"), full.names = TRUE)
+parts <- list.files(PARTS, full.names = TRUE)
 if (length(parts) == length(LEARNERS)) {
   res <- do.call(rbind, lapply(parts, read.csv)); res$abs_err <- abs(res$theta - res$theta_full)
-  write.csv(res, file.path(OUT, "bifactor_cat_results.csv"), row.names = FALSE)
+  write.csv(res, file.path(OUT, paste0("bifactor_cat_results", SUF, ".csv")), row.names = FALSE)
   summ <- do.call(rbind, lapply(split(res, list(res$k, res$rule), drop = TRUE), function(x)
     data.frame(k = x$k[1], rule = x$rule[1], learners = length(unique(x$learner)), mean_abs_err = mean(x$abs_err),
                mean_psd = mean(x$psd), within_1.96_psd = mean(x$abs_err <= 1.96 * x$psd),
-               spearman_vs_full = mean(vapply(split(x, x$run), function(z) cor(z$theta, z$theta_full, method = "spearman"), 0)))))
+               spearman_vs_full = mean(vapply(split(x, x$run), function(z) cor(z$theta, z$theta_full, method = "spearman"), 0)),
+               pearson_vs_full = mean(vapply(split(x, x$run), function(z) cor(z$theta, z$theta_full), 0)))))
   summ <- summ[order(summ$k, summ$rule), ]
   n_to <- aggregate(cbind(n_to_1.25_full_psd, n_to_1.1_full_psd) ~ rule, unique(res[, c("learner", "rule", "run", "n_to_1.25_full_psd", "n_to_1.1_full_psd")]),
                     function(v) median(v, na.rm = TRUE), na.action = na.pass)
-  write.csv(summ, file.path(OUT, "bifactor_cat_summary.csv"), row.names = FALSE)
+  write.csv(summ, file.path(OUT, paste0("bifactor_cat_summary", SUF, ".csv")), row.names = FALSE)
   print(summ, digits = 3, row.names = FALSE); print(n_to)
   lab <- c(bifactor = "adaptive, bifactor (expected posterior variance)", rasch_max_info = "adaptive, Rasch information",
            random = "random")
@@ -185,5 +227,5 @@ if (length(parts) == length(LEARNERS)) {
     stat_summary(fun = mean, geom = "line", linewidth = 1.2) + scale_x_log10(breaks = K) +
     labs(x = "task-items given (log scale)", y = "|ability after k items - full-bank ability| (logits)", colour = NULL) +
     theme_minimal(base_size = 11) + theme(legend.position = "bottom", legend.direction = "vertical")
-  ggsave(file.path(OUT, "fig_bifactor_cat.png"), gg, width = 7, height = 4.8, dpi = 200)
+  ggsave(file.path(OUT, paste0("fig_bifactor_cat", SUF, ".png")), gg, width = 7, height = 4.8, dpi = 200)
 }
