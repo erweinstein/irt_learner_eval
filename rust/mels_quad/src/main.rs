@@ -37,6 +37,16 @@ use std::f64::consts::PI;
 #[derive(Clone)]
 struct Cell { learner: usize, cond: usize, r: f64, ybar: f64, ssw: f64 }
 
+/// The between-cell log variance actually used: a smooth floor at ALPHA_FLOOR (softplus), so that an estimate on
+/// the boundary (variance 0, alpha -> -infinity) settles near the floor instead of drifting, which stalled the line
+/// search. Returns (alpha_eff, d alpha_eff / d alpha).
+const ALPHA_FLOOR: f64 = -20.0;
+fn alpha_eff(a: f64) -> (f64, f64) {
+    let x = a - ALPHA_FLOOR;
+    let sp = if x > 30.0 { x } else { x.exp().ln_1p() };
+    (ALPHA_FLOOR + sp, 1.0 / (1.0 + (-x).exp()))
+}
+
 #[derive(Clone)]
 struct Model {
     cells: Vec<Cell>,
@@ -70,7 +80,7 @@ impl Model {
         let lsig = p[self.idx_lsig()]; let sig = lsig.exp();
         let parts: Vec<(f64, Vec<(usize, f64)>)> = self.cells.par_iter().map(|c| {
             let mu = p[c.learner] + self.idx_beta_c(c.cond).map_or(0.0, |i| p[i]);
-            let al = p[self.idx_alpha(c.learner)]; let v = al.exp();
+            let (al, dal_draw) = alpha_eff(p[self.idx_alpha(c.learner)]); let v = al.exp();
             let s0 = p[self.idx_tau(c.learner)] + self.idx_gamma(c.cond).map_or(0.0, |i| p[i]);
             let dev = c.ybar - mu; let r = c.r;
             let mut lf = vec![0.0; self.z.len()];
@@ -95,7 +105,7 @@ impl Model {
                 }
                 g.push((c.learner, gmu));
                 if let Some(i) = self.idx_beta_c(c.cond) { g.push((i, gmu)); }
-                g.push((self.idx_alpha(c.learner), gal));
+                g.push((self.idx_alpha(c.learner), gal * dal_draw));
                 g.push((self.idx_tau(c.learner), gs0));
                 if let Some(i) = self.idx_gamma(c.cond) { g.push((i, gs0)); }
                 g.push((self.idx_lsig(), gls));
@@ -143,13 +153,14 @@ fn fit(m: &Model, init: Vec<f64>) -> (Vec<f64>, f64) {
     for _ in 0..8 {
         let ls = MoreThuenteLineSearch::new();
         let solver = LBFGS::new(ls, 20).with_tolerance_grad(1e-6).unwrap().with_tolerance_cost(1e-10).unwrap();
-        let res = Executor::new(m.clone(), solver).configure(|s| s.param(p.clone()).max_iters(1500)).run();
+        let res = Executor::new(m.clone(), solver).configure(|s| s.param(p.clone()).max_iters(400)).run();
         match res {
             Ok(r) => { p = r.state().get_best_param().unwrap().clone(); }
             Err(_) => break,
         }
-        for l in 0..m.nl { let i = m.idx_alpha(l); if p[i] < -25.0 { p[i] = -25.0; } }
+        for l in 0..m.nl { let i = m.idx_alpha(l); if p[i] < ALPHA_FLOOR - 15.0 { p[i] = ALPHA_FLOOR - 15.0; } }
         let f = m.nll_grad(&p, false).0;
+        if std::env::var("MELS_VERBOSE").is_ok() { eprintln!("round objective {:.6}", f); }
         if (last - f).abs() < 1e-7 { last = f; break; }
         last = f;
     }
@@ -241,6 +252,10 @@ fn main() {
         }).collect();
     }
     let nm = names(&m);
+    // report the between-cell log variances on the scale used (alpha_eff), with delta-method SEs
+    let mut p = p; let mut se = se;
+    for l in 0..m.nl { let i = m.idx_alpha(l); let (a, da) = alpha_eff(p[i]); p[i] = a; se[i] *= da; }
+    for b in bs.iter_mut() { for l in 0..m.nl { let i = m.idx_alpha(l); b[i] = alpha_eff(b[i]).0; } }
     if boot > 0 { println!("parameter,estimate,se,boot_se,boot_lo,boot_hi,boot_ok"); } else { println!("parameter,estimate,se"); }
     for i in 0..p.len() {
         if boot > 0 {
