@@ -85,3 +85,35 @@ def quantiles(crit, logits, k=1000):
         z = b[j] + np.clip((qs - lo) / np.maximum(p[r, j], 1e-300), 0, 1) * w[j]
         out[r] = np.clip(z, b[1], b[-2])
     return out
+
+
+def predict_train(xtr, ytr, seed, cache=None):
+    """The one-member fit of fit_variant (raw outcome, same seed and settings), predicting its own training rows
+    (in-sample), in blocks of 1,000 cached like fit_variant's test blocks. Used by R/07e_tabpfn_recalibrated.R to
+    rescale the test predictions by mean(ytr) / mean(in-sample predictions)."""
+    import torch
+    torch.set_num_threads(int(os.environ.get("IRT_TABPFN_THREADS", "1")))
+    from tabpfn import TabPFNRegressor
+    xtr = np.asarray(xtr, dtype=np.float32)
+    ytr = np.asarray(ytr, dtype=np.float64).ravel()
+    seed = int(seed)
+    rng = np.random.default_rng(seed)
+    if xtr.shape[0] > 10000:
+        i = rng.choice(xtr.shape[0], 10000, replace=False)
+        xtr, ytr = xtr[i], ytr[i]
+    t0 = time.time()
+    m = TabPFNRegressor(device="cpu", n_estimators=1, random_state=seed, ignore_pretraining_limits=True)
+    m.fit(xtr, ytr)
+    secs = time.time() - t0
+    mean = []
+    for i in range(0, xtr.shape[0], 1000):
+        f = None if cache is None else f"{cache}_{i // 1000}.npz"
+        if f is not None and os.path.exists(f):
+            z = np.load(f); mean.append(z["mean"]); secs += float(z["secs"]); continue
+        t1 = time.time()
+        o = m.predict(xtr[i:i + 1000], output_type="full")
+        mean.append(np.asarray(o["mean"], dtype=float))
+        secs += time.time() - t1
+        if f is not None:
+            np.savez(f, mean=mean[-1], secs=time.time() - t1)
+    return {"mean": np.concatenate(mean), "secs": secs}

@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November, and (j) of 21 on 17 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -213,6 +213,34 @@
     would have fixed. This is what-if, not a fair comparison: I chose the log scale for spending after seeing
     these results, and no other learner was given a choice of scale (glm_matched, gam and the boosters fit
     spending with a log link; glm, lasso, ridge and enet fit dollars by squared error).
+    (j) A recalibrated TabPFN (16-17 November; `R/07e_tabpfn_recalibrated.R`, output/tabpfn_recalibrated.csv;
+    `R/07f_tabpfn_recal_sensitivity.R`, output/v21/tabpfn_recal_sensitivity.csv). Since (h) found that the
+    training rows, predicted in-sample, fall as short as the test rows, the shortfall can be measured from the
+    training data alone. The rule, fixed before it was run and the same on every instance: fit TabPFN as the IRT
+    run did (one member, on y), predict the training rows, and multiply the test predictions by s = mean(y_train)
+    / mean(in-sample predictions). Over the 26 instances s runs from 0.89 to 1.78, and the in-sample ratio
+    (median 0.80 on spending, 0.84 on counts) carries over to the test rows: the rescaled test mean is 0.92-1.04
+    of the training mean (median 1.00 on spending and 1.01 on counts, against 0.76 and 0.84 unscaled). Where
+    TabPFN was not short, s is near 1 and little changes (c082, c018, c039); where it overshot, the mean comes
+    down (c041 1.14 to 1.01). The calibration criterion is met on all 26 instead of 9. That is close to
+    mechanical, since the criterion compares the predicted mean with the training mean and the rule sets the
+    in-sample mean equal to it; what it shows is that the in-sample shortfall is the test shortfall. The
+    accuracy criterion, which the rule does not force, is met on 14 instead of 10 (newly on c021, c038, c063
+    and c070), and it is lost on none. In the multilevel Rasch model (A1, as in (i)), putting the recalibrated
+    responses in place of TabPFN's on the 8 spending instances changes 7 responses and moves it from 1.53 and
+    4th to 2.21 and 2nd (the log scale of (i) gave 2.19). Doing the same on counts too changes 21 responses,
+    raises its proportion of criteria met from 0.62 to 0.77 (the stack's is 0.80), and moves it to 3.03, still
+    2nd but close to the stack (3.26) and far ahead of gam (1.63). No other learner moves more than 0.13. So
+    the rescaling does on spending what the log scale did, and on counts, where the log scale did nothing, it
+    removes the shortfall too; it costs one extra prediction, on the training rows. What is left on counts is
+    in the accuracy criterion, not in the level: it fails on 10 of the 18 counts (signal R^2 of 0.28-0.72 on the
+    seven simulated and plasmode ones, and short of the best learner on three real ones). The caveats
+    of (i) hold more strongly here: I chose the rule after seeing the shortfall, and no other learner was
+    rescaled. On spending, where glm, lasso, ridge and enet are least-squares fits with an unpenalized intercept,
+    s would be exactly 1 for them, since their in-sample mean equals the training mean; for the other learners
+    and outcomes I have not checked what it would do.
+    So this measures how much of TabPFN's place comes from calibration in the large; it does not show that a
+    recalibrated TabPFN is the second-best learner.
 22. **Tuned LightGBM and CatBoost (13 November; `IRT_PLAN=v21`, output/responses_21.csv, output/v21/).** Tuned as
     xgb_tuned is, not by a search: learning rate 0.05, small trees (LightGBM 8 leaves with 80% row and column
     subsampling; CatBoost depth 4), the number of rounds (at most 1,000) by 5-fold cross-validated early

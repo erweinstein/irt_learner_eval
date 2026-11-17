@@ -79,6 +79,11 @@ Added on 13 November:
   at zero), and TabPFN's place among the 21 learners had it been fitted on log(1 + y)
   (`R/07d_tabpfn_log_sensitivity.R`: 2nd instead of 4th with log(1 + y) on spending). The check finished on
   15 November: the 8-member ensemble on log(1 + y) does little better than one member on log(1 + y).
+  Added on 17 November: a recalibrated TabPFN (`R/07e_tabpfn_recalibrated.R`, which multiplies the test
+  predictions by the training mean over the mean of the in-sample predictions; `output/tabpfn_recalibrated.csv`)
+  and its place among the 21 learners (`R/07f_tabpfn_recal_sensitivity.R`: 2nd, at 3.03 against the stack's
+  3.26, with the recalibrated responses on spending and counts). Run with
+  `SCRIPT=R/07e_tabpfn_recalibrated.R LOGNAME_PREFIX=tabpfn_recal ./run_tabpfn_check.sh A` (resumable).
 
 Added on 16 November (after Gibbons et al. 2024 and Hedeker 2015; FLAGS.md 24-25):
 

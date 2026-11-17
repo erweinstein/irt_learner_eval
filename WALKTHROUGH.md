@@ -461,7 +461,17 @@ adaptively with the calibration from the others (section 7).
   only the stack, instead of 4th (`R/07d_tabpfn_log_sensitivity.R`; a what-if, since the scale was chosen after
   seeing these results). On the 12 instances fitted every way, TabPFN's default 8-member ensemble on log(1 + y)
   does only a little better than one member on log(1 + y) (median ratio 0.90 against 0.88; calibration met on 6
-  of 12 either way), at about nine times the cost, and five counts stay well short (`FLAGS.md` item 21).
+  of 12 either way), at about nine times the cost, and five counts stay well short. Since the training rows
+  fall as short as the test rows, a fix can be taken from the training data alone: multiply TabPFN's test
+  predictions by the training mean over the mean of its in-sample predictions (`R/07e_tabpfn_recalibrated.R`).
+  On all 26 instances this brings the predicted mean to 0.92-1.04 of the training mean (median 1.00 on
+  spending and 1.01 on counts), meets the calibration criterion on all 26 instead of 9 (close to mechanical,
+  since the rule sets the in-sample mean to the training mean), and meets the accuracy criterion on 14 instead
+  of 10, losing it on none. With these responses on spending and counts, TabPFN's proportion of criteria met
+  goes from 0.62 to 0.77 and it ranks 2nd of the 21, at 3.03 against the stack's 3.26 and gam's 1.63
+  (`R/07f_tabpfn_recal_sensitivity.R`). This too is a what-if: the rule was chosen after seeing the shortfall,
+  and no other learner was rescaled. It shows that most of what kept TabPFN below gam and BART is calibration
+  in the large, not its ranking of rows (`FLAGS.md` item 21).
 
 ## 10. References
 
