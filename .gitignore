@@ -14,3 +14,4 @@ __pycache__/
 meps_ml.csv
 output/**/bcat_parts*/
 logs_*.log
+rust/*/target/

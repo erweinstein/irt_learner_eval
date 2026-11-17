@@ -1,0 +1,17 @@
+[package]
+name = "mels_quad"
+version = "0.1.0"
+edition = "2021"
+authors = ["Eliot R. Weinstein <eliotw@uchicago.edu>"]
+description = "Mixed-effects location-scale model fitted by exact (quadrature) maximum likelihood, with condition-specific variance effects"
+
+[dependencies]
+argmin = "0.10"
+argmin-math = { version = "0.4", features = ["vec"] }
+rand = "0.8"
+rand_xoshiro = "0.6"
+rayon = "1.10"
+
+[profile.release]
+opt-level = 3
+lto = true
