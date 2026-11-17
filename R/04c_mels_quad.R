@@ -8,6 +8,7 @@
 #   Level 2 (cell = learner l on condition c):        nu_cl ~ N(0, exp(alpha_l)), omega_cl ~ N(0, sigma_omega^2)
 # The combined model substitutes level 2 into level 1: y_rcl = beta_l + beta_c + nu_cl + exp{(tau_l + gamma_c +
 # omega_cl)/2} u_rcl, u_rcl ~ N(0, 1). melsvmp's model is gamma_c = 0.
+# Rounds of L-BFGS: env MELS_ROUNDS (default 8 in the binary; 40 here).
 # Data as in R/04 (accuracy scores of the simulated tasks, 10 replicates per condition, 19 learners, cells with
 # (near-)constant scores dropped). Output: output/mels_quad_10reps_19.csv
 #
@@ -16,6 +17,7 @@
 # erweinstein.com
 
 BIN <- "rust/mels_quad/target/release/mels_quad"
+if (Sys.getenv("MELS_ROUNDS") == "") Sys.setenv(MELS_ROUNDS = "40")
 if (!file.exists(BIN)) system("cd rust/mels_quad && cargo build --release")
 r <- read.csv(Sys.getenv("IRT_RESPONSES", "output/responses_more_19.csv"))
 L <- intersect(c("glm", "glm_matched", "lasso", "ridge", "enet", "gam", "knn", "cart", "rf", "xgb_default", "xgb_tuned", "svm", "nnet", "stack",
@@ -41,6 +43,7 @@ for (g in c(FALSE, TRUE)) {
   f$model <- if (g) "with condition variance effects" else "melsvmp's model (no condition variance effects)"
   f$secs <- as.numeric(difftime(Sys.time(), t0, units = "secs")); fits[[length(fits) + 1]] <- f
   message(f$model[1], ": loglik ", round(f$loglik[1], 2), ", ", round(f$secs[1]), " s")
+  write.csv(f, sprintf("output/mels_quad_10reps_19_%s.csv", if (g) "gamma" else "nogamma"), row.names = FALSE)
 }
 F <- do.call(rbind, lapply(fits, function(f) f[, intersect(c("model", "parameter", "learner", "cond", "estimate", "se", "boot_se", "boot_lo", "boot_hi", "boot_ok", "loglik", "secs"), names(f))]))
 write.csv(F, "output/mels_quad_10reps_19.csv", row.names = FALSE)

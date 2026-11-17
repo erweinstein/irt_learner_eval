@@ -27,7 +27,7 @@
 //! erweinstein.com
 
 use argmin::core::{CostFunction, Error, Executor, Gradient, State};
-use argmin::solver::linesearch::MoreThuenteLineSearch;
+use argmin::solver::linesearch::{condition::ArmijoCondition, BacktrackingLineSearch};
 use argmin::solver::quasinewton::LBFGS;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -41,6 +41,8 @@ struct Cell { learner: usize, cond: usize, r: f64, ybar: f64, ssw: f64 }
 /// the boundary (variance 0, alpha -> -infinity) settles near the floor instead of drifting, which stalled the line
 /// search. Returns (alpha_eff, d alpha_eff / d alpha).
 const ALPHA_FLOOR: f64 = -20.0;
+static GEVALS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static EVALS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 fn alpha_eff(a: f64) -> (f64, f64) {
     let x = a - ALPHA_FLOOR;
     let sp = if x > 30.0 { x } else { x.exp().ln_1p() };
@@ -137,11 +139,24 @@ impl Model {
 
 impl CostFunction for Model {
     type Param = Vec<f64>; type Output = f64;
-    fn cost(&self, p: &Self::Param) -> Result<Self::Output, Error> { Ok(self.nll_grad(p, false).0) }
+    fn cost(&self, p: &Self::Param) -> Result<Self::Output, Error> {
+        let f = self.nll_grad(p, false).0;
+        // a step into a region where the likelihood overflows is rejected by the line search
+        let f = if f.is_finite() { f } else { f64::INFINITY };
+        if std::env::var("MELS_VERBOSE").is_ok() {
+            let n = EVALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if n % 500 == 0 { eprintln!("eval {} cost {:.6} lsig {:.3} max|p| {:.2}", n, f, p[self.idx_lsig()], p.iter().fold(0.0f64, |a, x| a.max(x.abs()))); }
+        }
+        Ok(f) }
 }
 impl Gradient for Model {
     type Param = Vec<f64>; type Gradient = Vec<f64>;
-    fn gradient(&self, p: &Self::Param) -> Result<Self::Gradient, Error> { Ok(self.nll_grad(p, true).1) }
+    fn gradient(&self, p: &Self::Param) -> Result<Self::Gradient, Error> {
+        if std::env::var("MELS_VERBOSE").is_ok() {
+            let n = GEVALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if n % 100 == 0 { eprintln!("grad eval {}", n); }
+        }
+        Ok(self.nll_grad(p, true).1) }
 }
 
 fn fit(m: &Model, init: Vec<f64>) -> (Vec<f64>, f64) {
@@ -150,8 +165,11 @@ fn fit(m: &Model, init: Vec<f64>) -> (Vec<f64>, f64) {
     let mut last = f64::INFINITY;
     // a between-cell variance whose estimate is on the boundary (alpha -> -infinity) is held at alpha = -25
     // (variance 1e-11) after each round, so the optimizer does not chase it
-    for _ in 0..8 {
-        let ls = MoreThuenteLineSearch::new();
+    let rounds: usize = std::env::var("MELS_ROUNDS").ok().and_then(|v| v.parse().ok()).unwrap_or(8);
+    for _ in 0..rounds {
+        // backtracking (Armijo) rather than More-Thuente: on these data a first step can overflow the likelihood,
+        // and backtracking simply shrinks it, where More-Thuente's interpolation was carried off to infinity
+        let ls = BacktrackingLineSearch::new(ArmijoCondition::new(1e-4f64).unwrap()).rho(0.5f64).unwrap();
         let solver = LBFGS::new(ls, 20).with_tolerance_grad(1e-6).unwrap().with_tolerance_cost(1e-10).unwrap();
         let res = Executor::new(m.clone(), solver).configure(|s| s.param(p.clone()).max_iters(400)).run();
         match res {
@@ -232,6 +250,7 @@ fn main() {
             worst = worst.max((fd - g[j]).abs() / (1.0 + fd.abs())); }
         println!("#gradient_check_max_rel_diff,{:e}", worst); return;
     }
+    if std::env::var("MELS_VERBOSE").is_ok() { eprintln!("start: {} cells, {} parameters, objective {:.4}", m.cells.len(), m.npar(), m.nll_grad(&m.start(), false).0); }
     let (p, nll) = fit(&m, m.start());
     let se = hessian_se(&m, &p);
     // bootstrap: resample conditions with replacement, each with all its cells (a resampled condition gets a new
