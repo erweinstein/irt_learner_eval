@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-25 on 16 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -322,3 +322,31 @@
     approximation, so their variance components are presumably too small by a similar amount; their abilities
     should be little affected. The graded calibration's shortfall is smaller (0.90 and 0.95) and was not
     corrected. A fully exact fit (all random effects integrated) would need MCMC or Monte Carlo EM; not done.
+
+26. **melsvmp's collapse of the between-condition variances is its algorithm, not the model (16 November;
+    `rust/mels_quad`, R/04c_mels_quad.R; output/mels_quad_10reps_19*.csv).** The same location-scale model as
+    R/04 (items 16 and 23), fitted by exact maximum likelihood with my own solver:
+    - Level 1 (replicate r of condition c, learner l): y_rcl = beta_l + beta_c + nu_cl + e_rcl,
+      e_rcl ~ N(0, exp(tau_l + gamma_c + omega_cl)).
+    - Level 2 (cell): nu_cl ~ N(0, exp(alpha_l)), omega_cl ~ N(0, sigma_omega^2).
+    - Combined: y_rcl = beta_l + beta_c + nu_cl + exp{(tau_l + gamma_c + omega_cl)/2} u_rcl, u_rcl ~ N(0, 1);
+      melsvmp's model has gamma_c = 0.
+    The location effect is integrated in closed form and the scale effect on a 241-point grid; the gradient is
+    analytic; L-BFGS with a backtracking line search (More-Thuente's search was carried to an overflowing step on
+    these data, which is why the first runs never finished); alpha enters through a smooth floor at -20 so a
+    boundary estimate settles instead of drifting. Each fit takes about 5 minutes.
+    (a) With melsvmp's model, exact ML gives clearly nonzero between-condition variances for 16 of the 19
+    learners (alpha -2.5 to -9.4), where melsvmp gave alpha -14 to -71 for 11 of them. Only the three tuned
+    boosters (xgb_tuned, lightgbm_tuned, catboost_tuned) go to the boundary (alpha about -16 to -17, SE about
+    5.5: their condition means vary too little to separate from the within-condition noise). For the learners
+    melsvmp did not collapse, the two agree within 0.1-0.8 (glm -3.25 vs -3.18; xgb_default -2.55 vs -2.34;
+    nnet -2.61 vs -1.85). sigma_omega agrees (2.15 vs 2.17). So item 23's reading, that the single sigma_omega
+    absorbed the learner-by-condition variation, was wrong: the collapse is melsvmp's variational fit, and should
+    be reported to its authors as such, with these data.
+    (b) Letting each condition have its own variance level (gamma_c, 52 parameters) improves the log-likelihood
+    by 748 (LR 1497 on 52 df) and cuts sigma_omega from 2.15 to 0.89: the conditions' variance levels (gamma_c
+    from -3.9 to +4.1, SD 2.0) are most of the scale heterogeneity. The alphas hardly move (within 0.8), the
+    same three go to the boundary, and the taus shift by a common constant (they are now relative to condition
+    0's level). For volatility comparisons between learners this is the model to use; melsvmp cannot fit it.
+    (c) Not done: SEs by the condition bootstrap (`MELS_QUAD_B`), and a profile likelihood for the three boundary
+    alphas.

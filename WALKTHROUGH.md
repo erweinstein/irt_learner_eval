@@ -434,7 +434,12 @@ adaptively with the calibration from the others (section 7).
   0.57 to 0.63 logits), and the adaptive posterior SDs by 5–10% (`FLAGS.md` item 25).
 - **Location-scale models.** A mixed-effects location-scale model of draw-to-draw variability (Hedeker,
   Mermelstein and Demirtas 2008; fitted with Wu and Hedeker's 2026 melsvmp) was degenerate on these data
-  (`R/04*`, `FLAGS.md` item 16).
+  (`R/04*`, `FLAGS.md` item 16): melsvmp put the between-condition variance at zero for 11 of 19 learners. An
+  exact maximum-likelihood fit of the same model with my own solver (`rust/mels_quad`, `R/04c_mels_quad.R`)
+  does not: it gives clearly nonzero variances for 16 learners and puts only the three tuned boosters on the
+  boundary, so the collapse came from melsvmp's variational algorithm. Adding a variance level for each task
+  condition improves the fit greatly (likelihood ratio 1,497 on 52 df) and takes the SD of the random scale
+  effect from 2.15 to 0.89 (`FLAGS.md` item 26).
 - **TabPFN's low means on spending and counts** (predicted mean a median 0.77 of the training mean on the 14
   instances with up to 1,000 training rows). `R/07_tabpfn_check.R` refits it in four variants. The cause is
   not the bounded range of its predicted distribution, nor the target transform its preprocessing draws.
