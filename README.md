@@ -107,6 +107,17 @@ not shared under the MEPS data use agreement; nothing in `output/` is row-level 
 glmnet, mgcv, FNN, rpart, ranger, xgboost (3.x API), e1071, nnet, MASS, quadprog, AER, ISLR2, mlbench,
 glmmTMB, mirt (needs Deriv; on R 4.3 install Deriv 4.1.6 from the CRAN archive), ggplot2, ggrepel.
 
+Added on 18 November (FLAGS.md 27-28):
+
+- **Unanimous task-items** (`R/03d_unanimous_sensitivity.R`; `IRT_NCYCLES` sets mirt's EM cycle limit): refits the
+  flipped 2PL and bifactor models and the multilevel Rasch model without the task-items every learner passed or
+  failed. Results in `output/v21/unanimous_*.csv`. The flipped bifactor fit of `03_irt.R` does not converge with
+  them.
+- **A posterior-SD stopping rule** (`R/06d_cat_stopping_rule.R`; `CAT_STOP_PSD`, `CAT_CAP`, `CAT_RUNS`, `CAT_RAND`;
+  about 10 minutes on 2 cores): adaptive tests with one task-item per family first, stopping at a posterior SD of
+  0.9 or 0.7 logits, random selection under the same rule, and coverage of a predictive interval for the
+  proportion of criteria met. Results in `output/v21/cat_stop_*.csv`.
+
 ## Files
 
 | File | What it holds |
@@ -124,4 +135,6 @@ glmmTMB, mirt (needs Deriv; on R 4.3 install Deriv 4.1.6 from the CRAN archive),
 | `output/irt_results.rds` | all fitted models |
 | `output/cat_*.csv`, `output/bifactor_cat_*.csv` | adaptive testing (Rasch and bifactor) |
 | `output/responses_more.csv`, `output/volatility_check.csv` | 10-replicate rerun; location-scale checks |
+| `output/v21/unanimous_*.csv` | the unanimous task-items, and the fits with and without them |
+| `output/v21/cat_stop_*.csv` | adaptive tests with a posterior-SD stopping rule; coverage of the proportion met |
 | `FLAGS.md` | possible problems and open questions |

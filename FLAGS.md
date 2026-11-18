@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November, and (j) of 21 on 17 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November, (j) of 21 on 17 November, and 27-28 on 18 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -378,3 +378,56 @@
     0's level). For volatility comparisons between learners this is the model to use; melsvmp cannot fit it.
     (c) Not done: SEs by the condition bootstrap (`MELS_QUAD_B`), and a profile likelihood for the three boundary
     alphas.
+27. **Unanimous task-items, and the flipped bifactor fit does not converge (18 November; R/03d_unanimous_sensitivity.R;
+    output/v21/unanimous_*.csv; 21 learners).** 43 of the 469 task-items are unanimous: 20 passed by every learner
+    that answered them (10 in the dml family, 6 import, 3 real-data count, 1 count) and 23 failed by all. In the
+    flipped orientation each is a respondent with a perfect or zero score.
+    (a) Possible problem: the flipped bifactor fit of 03_irt.R part B (general factor plus linear, trees and local
+    group factors, all task-items) does not converge. It stops at mirt's default limit of 500 EM cycles, and again
+    at 5,000 (`IRT_NCYCLES=5000`), with the same log-likelihood (-3,634). 03_irt.R does not check convergence, so
+    output/v21/irt_B_bifactor.csv comes from an unconverged fit; the 14- and 19-learner fits use the same call and
+    were not checked. Without the unanimous task-items it converges in 247 cycles (M2 RMSEA 0.136 against 0.190).
+    (b) The one-factor 2PL converges with all task-items (49 cycles) but needs 3,304 without them, and its slopes
+    change a lot (Pearson 0.42 between the fits; median ratio 0.64). The near-duplicate linear learners' slopes rise
+    from 2.6-3.0 to 8.7-19 (lasso, ridge, elastic net; item 3), and TabPFN's goes from 0.29 to -0.12. So the flipped
+    2PL slopes depend on the unanimous respondents, and should not be read as discriminations.
+    (c) The Rasch-type fits are stable. The bifactor general slopes correlate 0.994 between the two fits (scale 0.76,
+    because the easiness distribution is restandardized), and the multilevel Rasch abilities (A1) hardly move
+    (Pearson 0.9998, largest change 0.14 logits; SEs about 3% smaller). Dropping the unanimous items lowers the
+    item-difficulty SD from 1.26 to 1.03 and the condition SD from 1.78 to 1.55, and leaves the learner-by-family
+    SD as it was (1.73 and 1.72).
+28. **Adaptive tests that stop by a posterior-SD rule, judged by coverage (18 November; R/06d_cat_stopping_rule.R;
+    output/v21/cat_stop_*.csv; 21 learners, leave one out).** 06_bifactor_cat.R compares rules at fixed lengths
+    and by distance from the full-bank ability. Here each test first takes one task-item from each of the 16
+    task families (content balancing), then stops when the posterior SD of the ability reaches 0.9 or 0.7 logits
+    (cap 150 items), and random selection stops by the same rule. Also judged: the 95% predictive interval for the
+    learner's proportion of criteria met over its whole bank (answers given plus simulated answers to the rest,
+    drawn from the posterior of the ability and the family and condition effects). 3 runs per adaptive rule and
+    10 random per learner and pool.
+    (a) At 0.7 logits, all task-items: bifactor selection stopped after a median 53 items, Rasch selection 88 and
+    random 98 (random reached 0.7 in 82% of tests within 150). The lenient check (error within 1.96 posterior SDs
+    of the full-bank ability) passes 95-100% for all three. But the predictive intervals for the proportion met
+    covered it in 84% of bifactor tests and 81% of Rasch tests, against 96% for random selection, with similar
+    widths (13.2, 11.1 and 10.9 percentage points). Mean signed errors: -1.4, +0.3 and 0.0 points. At 0.9 logits
+    (about 20-34 items) the intervals are about twice as wide and coverage is 95-100% for all three.
+    (b) The adaptive rules' errors follow the learner's own slope. Across learners, the bifactor rule's mean signed
+    error correlates -0.54 with the learner's flipped 2PL slope (all task-items; -0.45 for Rasch selection; 0.01
+    for random): steep learners are under-predicted and flat ones over-predicted. All ten of the bifactor rule's misses at
+    0.7 come from four learners: lasso and ridge (about -11 points, never covered), TabPFN (+7, slope 0.29, never
+    covered) and cart (+5). The likely reason is that adaptive selection concentrates on items near the learner's
+    50% point, and the bank-level prediction then extrapolates to the easy and hard items with the calibration's
+    common slope of 1, which is wrong for these learners. Random selection samples the whole range of difficulty
+    and needs no extrapolation. Bunching within a condition is not the cause here: with content balancing, the
+    largest share of a test in one condition is 4-8% for every rule.
+    (c) Without the unanimous task-items (decided from the calibration learners only), bifactor coverage at 0.7
+    rises to 89% (signed error -0.9) and Rasch selection's to 84%; random stays at 97%. At 0.9 the bifactor rule's
+    coverage falls to 87%, so the reduced pool is not uniformly better.
+    (d) Possible problems: 21 learners are few independent units (63 adaptive tests per rule are 21 learners
+    repeated), so each coverage figure is uncertain by several points. The calibration is treated as known. The
+    predictive simulation draws the family and condition effects on the 7 quadrature nodes. And four learners
+    (cart, elastic net, glm_matched, RealMLP) have full-bank posterior SDs above 0.7 yet most of their tests stopped
+    at 0.7: under local dependence the posterior SD is not monotone in the number of items, so a short test can
+    look more precise than the whole bank.
+    (e) Not done: scoring that frees each learner's slope, for example by calibrating the new learner as a new item
+    in the flipped 2PL (online calibration), which (b) suggests might remove much of the bias; and a version of the
+    stopping rule for graded responses.

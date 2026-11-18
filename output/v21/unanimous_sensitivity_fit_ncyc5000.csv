@@ -1,0 +1,5 @@
+"bank","model","respondents","converged","iterations","logLik","BIC","RMSEA","secondordertest"
+"all task-items","2PL, one factor",469,TRUE,49,-4080.91639496035,8420.15810619544,0.195763348566108,TRUE
+"all task-items","bifactor (general + linear, trees, local)",469,FALSE,5000,-3634.48132384046,7644.14941655615,0.190411915276731,TRUE
+"without unanimous","2PL, one factor",426,TRUE,3304,-3906.24303193354,8066.77251641039,0.17502300472656,TRUE
+"without unanimous","bifactor (general + linear, trees, local)",426,TRUE,247,-3478.4781748213,7326.27714976503,0.136097455592385,TRUE

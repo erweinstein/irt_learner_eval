@@ -393,6 +393,28 @@ version should score higher. With binary scoring, every run of every rule ranks 
 1.96 posterior SDs in every run from 20 items on. Tuning matters a lot on these tasks, so this shows the score
 is not broken more than that it is sensitive.
 
+**Stopping by a posterior-SD rule** (`R/06d_cat_stopping_rule.R`; added 18 November; `FLAGS.md` item 28).
+Operational adaptive tests stop when the score's posterior SD falls below a threshold, not at a fixed length, and
+they first cover every content area. So each test here first takes one task-item from each of the 16 task
+families, then stops at a posterior SD of 0.9 or 0.7 logits (at most 150 items), and random selection stops by
+the same rule, which is the fair comparison. Besides the distance from the full-bank ability, each test is judged
+on something readers know: a 95% predictive interval for the learner's proportion of criteria met over its whole
+bank. At 0.7 logits:
+
+| Rule | Median items | Error within 1.96 posterior SDs | Interval covers the proportion met | Interval width (points) |
+|---|---|---|---|---|
+| Bifactor selection | 53 | 100% | 84% | 13.2 |
+| Rasch selection | 88 | 95% | 81% | 11.1 |
+| Random, same stopping rule | 98 | 100% | 96% | 10.9 |
+
+The check against the full-bank ability shares the answers it is checked against, so it passes almost every
+test. The proportion met is stricter, and on it the adaptive rules fall short. Their errors follow the learner's
+own slope in the flipped 2PL (correlation -0.54 for bifactor selection, 0.01 for random): adaptive selection
+gathers items near the learner's 50% point, and the prediction for the rest of the bank then relies on the
+calibration's common slope, which is wrong for learners like TabPFN (flipped slope 0.29) or the near-duplicate
+lasso and ridge. Random selection takes about twice as many items and needs no such extrapolation. Leaving out
+the task-items that every calibration learner passed or failed raises the bifactor rule's coverage to 89%.
+
 ## 8. Adding a learner of your own
 
 1. Add a branch to `fit_predict()` in `R/00_learners.R` (or to `py/learners_py.py` for a Python
@@ -472,6 +494,12 @@ adaptively with the calibration from the others (section 7).
   (`R/07f_tabpfn_recal_sensitivity.R`). This too is a what-if: the rule was chosen after seeing the shortfall,
   and no other learner was rescaled. It shows that most of what kept TabPFN below gam and BART is calibration
   in the large, not its ranking of rows (`FLAGS.md` item 21).
+
+- **Unanimous task-items and convergence** (`R/03d_unanimous_sensitivity.R`, `FLAGS.md` item 27). 43 task-items
+  are passed by every learner or failed by every learner. The flipped bifactor fit with all of them does not
+  converge (not in 500 EM cycles, nor in 5,000), and does without them (247 cycles). The flipped 2PL's slopes
+  change a lot when they are left out (Pearson 0.42 between the fits), while the multilevel Rasch abilities do not
+  (0.9998). Check convergence (`extract.mirt(fit, "converged")`) before reading a flipped fit.
 
 ## 10. References
 
