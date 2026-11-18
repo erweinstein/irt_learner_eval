@@ -415,6 +415,37 @@ calibration's common slope, which is wrong for learners like TabPFN (flipped slo
 lasso and ridge. Random selection takes about twice as many items and needs no such extrapolation. Leaving out
 the task-items that every calibration learner passed or failed raises the bifactor rule's coverage to 89%.
 
+**Calibrating the new learner as a new item** (`R/06e_online_calibration_cat.R`; added 18 November; `FLAGS.md`
+item 29). In the flipped orientation the task-items are respondents and a new learner is a new item, so scoring
+it is item calibration against respondents whose easiness is already estimated, which adaptive testing calls
+online calibration (Stocking 1988; Ban et al. 2001). That frees the learner's own slope. For left-out learner
+$l$ and task-item $i$ in condition $c(i)$ of family $f(i)$, with easiness $\eta_i$ from the multilevel Rasch
+calibration on the other learners:
+
+- Level 1 (task-item): $\operatorname{logit} P(Y_{li} = 1) = d_l + a_l \eta_i + u_{l f(i)} + w_{l c(i)}$
+- Level 2 (learner): $(d_l, a_l) \sim N(m_0, S_0)$, $u_{lf} \sim N(0, \tau_F^2)$, $w_{lc} \sim N(0, \tau_C^2)$
+- Combined: $\operatorname{logit} P(Y_{li} = 1) = d_l + a_l \eta_i + u_{l f(i)} + w_{l c(i)}$
+
+With $a_l = 1$ this is the Rasch testlet model of the tests above. $m_0$ and $S_0$ are the mean and twice the
+covariance of the other learners' own logistic regressions on $\eta$, and the posterior of $(d_l, a_l)$ is
+computed on a grid. Items are chosen to minimize the expected posterior variance of the bank proportion $A(d,
+a)$, and a "mixed" rule takes every second item at random. Without the family and condition effects, stopping at
+a posterior SD of $A$ of 0.04:
+
+| Rule | Median items | Interval covers the proportion met | Interval width (points) | Error's correlation with the slope |
+|---|---|---|---|---|
+| Online calibration | 49 | 90% | 13.6 | -0.18 |
+| Online calibration, every second item random | 60 | 94% | 13.2 | 0.02 |
+| Random, same stopping rule | 85 | 91% | 13.3 | 0.11 |
+
+Bifactor selection above had intervals of the same width at 53 items, but covered 84% and its errors correlated
+-0.54 with the slope. Freeing the slope removes most of that bias. Selection by the current posterior alone can
+still fail when the prior is wrong: TabPFN's slope is 0.11 against a prior mean of 0.79, and all three of its
+online tests stopped early and missed, while its mixed and random tests covered. So the mixed rule is the safer
+choice. Adding the family and condition effects improves coverage at fixed lengths, but stopping on $A$ then
+fails, because $A$ averages those effects over new families. `FLAGS.md` item 29 has the details and the
+possible problems, including a prior that is too steep.
+
 ## 8. Adding a learner of your own
 
 1. Add a branch to `fit_predict()` in `R/00_learners.R` (or to `py/learners_py.py` for a Python
@@ -504,6 +535,9 @@ adaptively with the calibration from the others (section 7).
 ## 10. References
 
 - Bock, R. D. and R. D. Gibbons (2021). *Item Response Theory*. Wiley.
+- Ban, J.-C., B. A. Hanson, T. Wang, Q. Yi and D. J. Harris (2001). A comparative study of on-line pretest
+  item-calibration/scaling methods in computerized adaptive testing. *Journal of Educational Measurement* 38(3),
+  191–212.
 - Brooks, M. E., et al. (2017). glmmTMB balances speed and flexibility among packages for zero-inflated
   generalized linear mixed modeling. *The R Journal* 9(2), 378–400.
 - Chalmers, R. P. (2012). mirt: a multidimensional item response theory package for the R environment.
@@ -537,6 +571,8 @@ adaptively with the calibration from the others (section 7).
   1140–1148.
 - Ten Have, T. R. and D. H. Uttal (1994). Subject-specific and population-averaged continuation ratio logit
   models for multiple discrete time survival profiles. *Applied Statistics* 43, 371–384.
+- Stocking, M. L. (1988). *Scale drift in on-line calibration*. Research Report RR-88-28. Educational Testing
+  Service.
 - Tseng, A., A. Yang, L. Mandocescu, R. D. Gibbons and S. Jacob (2026). Computerized adaptive tests for
   rapid and accurate assessment of autism. *JAMA Network Open* 9(7), e2622227.
 - Wu, B. P.-H. and D. Hedeker (2026). Fast estimation and valid statistical inference for mixed-effect

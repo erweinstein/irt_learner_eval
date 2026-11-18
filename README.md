@@ -107,7 +107,7 @@ not shared under the MEPS data use agreement; nothing in `output/` is row-level 
 glmnet, mgcv, FNN, rpart, ranger, xgboost (3.x API), e1071, nnet, MASS, quadprog, AER, ISLR2, mlbench,
 glmmTMB, mirt (needs Deriv; on R 4.3 install Deriv 4.1.6 from the CRAN archive), ggplot2, ggrepel.
 
-Added on 18 November (FLAGS.md 27-28):
+Added on 18 November (FLAGS.md 27-29):
 
 - **Unanimous task-items** (`R/03d_unanimous_sensitivity.R`; `IRT_NCYCLES` sets mirt's EM cycle limit): refits the
   flipped 2PL and bifactor models and the multilevel Rasch model without the task-items every learner passed or
@@ -117,6 +117,12 @@ Added on 18 November (FLAGS.md 27-28):
   about 10 minutes on 2 cores): adaptive tests with one task-item per family first, stopping at a posterior SD of
   0.9 or 0.7 logits, random selection under the same rule, and coverage of a predictive interval for the
   proportion of criteria met. Results in `output/v21/cat_stop_*.csv`.
+- **The new learner calibrated as a new item** (`R/06e_online_calibration_cat.R`; `CAT_STOP_SDA`, `CAT_CAP`,
+  `CAT_RUNS`, `CAT_RAND`, `CAT_NSIM`, `CAT_ONLY`; about 1 h 45 min on 2 cores, and it resumes from
+  `output/v21/online_cat_parts/` if stopped): online calibration in the flipped orientation, with the learner's own
+  intercept and slope estimated against the task-items' calibrated easiness, selection for the posterior variance
+  of the bank proportion, a mixed rule that takes every second item at random, and the same coverage check.
+  Results in `output/v21/online_cat_*.csv`.
 
 ## Files
 
@@ -137,4 +143,5 @@ Added on 18 November (FLAGS.md 27-28):
 | `output/responses_more.csv`, `output/volatility_check.csv` | 10-replicate rerun; location-scale checks |
 | `output/v21/unanimous_*.csv` | the unanimous task-items, and the fits with and without them |
 | `output/v21/cat_stop_*.csv` | adaptive tests with a posterior-SD stopping rule; coverage of the proportion met |
+| `output/v21/online_cat_*.csv` | adaptive tests that estimate the new learner's own slope (online calibration) |
 | `FLAGS.md` | possible problems and open questions |

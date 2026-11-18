@@ -1,4 +1,4 @@
-# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November, (j) of 21 on 17 November, and 27-28 on 18 November)
+# Flags and open questions (IRT evaluation of ML pipelines, 11 November 2026; items 12-17 added later that day, 18-21 on 12 November, 22-23 on 13 November, and the first TabPFN check results in 21 later that day; the second and third phases of that check in 21 on 14 November, and (f)-(i) of 21 on 15 November; 24-26 on 16 November, (j) of 21 on 17 November, and 27-29 on 18 November)
 
 1. **Thresholds are arbitrary.** Signal R^2 >= 0.8, AUC excess >= 90% of the oracle's, within 0.01 of the
    best learner on real data (0.02 for spending), calibration slope in [0.8, 1.25] and means within
@@ -431,3 +431,51 @@
     (e) Not done: scoring that frees each learner's slope, for example by calibrating the new learner as a new item
     in the flipped 2PL (online calibration), which (b) suggests might remove much of the bias; and a version of the
     stopping rule for graded responses.
+29. **Adaptive tests that calibrate the new learner as a new item (18 November; R/06e_online_calibration_cat.R;
+    output/v21/online_cat_*.csv; 21 learners, leave one out).** This is 28(e)'s first suggestion. In the flipped
+    orientation the task-items are respondents whose easiness eta_i is taken from the multilevel Rasch calibration
+    on the other 20 learners, and the new learner's intercept and slope (d, a) get a 41 x 25 grid posterior under an
+    empirical prior (the mean and twice the covariance of the reference learners' own logistic regressions on eta),
+    as in online calibration of new items (Stocking 1988; Ban et al. 2001). Variant "2pl" has no family or condition
+    effects; "2pl_testlet" adds them at the calibration's SDs (2.1 and 1.6 logits), by 7-point Gauss-Hermite
+    quadrature. After one task-item per family, "online" selection minimizes the expected posterior variance of the
+    bank proportion A(d, a); "mixed" takes every second item at random; random selection uses the same stopping
+    rule: SD(A) <= 0.04 or 0.025, cap 150, with the state also recorded at 25, 50 and 100 items. Judged by the same
+    predictive interval for the proportion met as in 28. 3 runs per adaptive rule and 10 random per learner; about
+    1 h 45 min on 2 cores.
+    (a) 2pl variant, SD(A) <= 0.04: online selection stopped after a median 49 items, mixed 60 and random 85, all
+    with intervals about 13 points wide (13.6, 13.2, 13.3), covering in 90%, 94% and 91% of tests (mean absolute
+    errors 3.2, 3.0 and 3.1 points). At a similar length and width, 28's bifactor rule covered 84%. The correlation
+    of the mean signed error with the learner's slope fell from -0.54 (28(b)) to -0.18 (online) and 0.02 (mixed);
+    random 0.11. Lasso and ridge, never covered in 28, were covered in 5 of 6 online tests. Every test stopped. At
+    0.025, 62% of online tests, 44% of mixed and 4% of random stopped within 150 (coverage 92%, 90% and 97%).
+    (b) Fixed lengths, 2pl variant: at 25 and 50 items online selection had the smallest errors (3.9 and 2.7 points;
+    random 5.7 and 4.0) and narrower intervals (20.7 and 13.8 points; random 26.3 and 18.3), covering 98% and 94%
+    (random 93% both). At 100 items its advantage was gone (2.6 against 2.5 points) and coverage fell to 83%
+    (glm_matched and TabPFN 3 of 3 missed, gam 2), while mixed and random stayed at 95%.
+    (c) Exploration. TabPFN's full-bank slope against eta is 0.11; the prior mean is 0.79 (SD 0.25). All three
+    online tests stopped at 43-46 items with the posterior slope at 0.84-0.89, predicting 69-70% met against 62%,
+    and none covered. Mixed and random tests took 109-122 items, brought the slope to 0.12-0.22, and all 13 covered.
+    Selection by expected variance under the current posterior has little reason to test a slope the prior rules
+    out, so the mixed rule is the safer default.
+    (d) The testlet variant almost never stops (13% of online tests, one mixed and no random test reached 0.04;
+    SD(A) usually 0.05-0.06 at the cap). This is a flaw in the stopping quantity: A(d, a) averages the family and
+    condition effects over their prior, so it is the proportion expected on a new bank of new families, which stays
+    uncertain with 16 families. The proportion on the learner's own bank, which conditions on its estimated family
+    and condition effects, is much better determined (predictive intervals 6.3-6.7 points wide at 150 items,
+    coverage 92-100%). The stopping rule for this variant should use the predictive SD of that proportion. As
+    fixed-length tests, the testlet variant repairs (b)'s loss of coverage at 100 items (online 98%, width 9.3
+    points, against 83% and 8.9 without testlet effects), which suggests that the plain 2PL's overconfidence there
+    comes from ignoring dependence within families. It recovers slopes worse (mean absolute error 0.34 against
+    0.12), probably because the family effects absorb much of the variation in eta that identifies the slope.
+    (e) Possible problems: the prior is too steep. The reference learners' slopes are measured against an eta fitted
+    to their own answers, so they average 0.79, while the left-out learners' full-bank slopes average 0.64 (range
+    0.11-0.92); a cross-fitted prior (each reference learner's slope against an eta fitted without it) would remove
+    this at 20 more calibrations per learner. eta is treated as known (doubling S0 is a rough allowance), and the
+    "true" slope is estimated from the same eta without testlet effects, on a different scale from the flipped 2PL
+    slopes of 28 (TabPFN 0.29 there). The stopping quantities differ from 28's (SD of A against SD of the
+    ability), so the comparison with 28 is at matched widths, not matched thresholds. RealMLP and TabPFN have 137
+    task-items, so their tests that reach the cap of 150 have seen the whole bank. And 63 adaptive tests per rule
+    are 21 learners repeated, so differences of a few points in coverage are within noise.
+    (f) Not done: a cross-fitted prior; the predictive-SD stopping rule for the testlet variant; and a bifactor
+    version for the new learner (a general slope plus family-specific slopes).
