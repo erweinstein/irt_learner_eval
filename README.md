@@ -128,6 +128,7 @@ Added on 18 November (FLAGS.md 27-29):
 
 | File | What it holds |
 |---|---|
+| `rust/README.md` | the exact location-scale fit (`rust/mels_quad`): the model, what it showed against melsvmp, and what Rust contributed |
 | `output/responses.csv` | one row per instance x criterion x learner: score and pass (6,223 rows) |
 | `output/responses_19.csv`, `output/v19/` | the same for all 19 learners (7,904 rows), and the final results from them |
 | `output/responses_21.csv`, `output/v21/` | the same with the two tuned learners added (8,842 rows) |
