@@ -71,3 +71,9 @@ threads. The fit offers a bootstrap that resamples conditions (`MELS_QUAD_B`).
   Programming* 45, 503–528.
 - Wu, B. P.-H. and D. Hedeker (2026). Fast estimation and valid statistical inference for mixed-effect
   location-scale models using variational inference. *Statistics in Medicine* 45, e70640.
+
+## License
+
+The Rust crate (`mels_quad/`) is licensed under either of the Apache License, Version 2.0 (`mels_quad/LICENSE-APACHE`) or
+the MIT license (`mels_quad/LICENSE-MIT`), at your option. These licenses cover the crate only, not the rest of this
+repository.

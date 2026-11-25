@@ -2,6 +2,7 @@
 name = "mels_quad"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
 authors = ["Eliot R. Weinstein <eliotw@uchicago.edu>"]
 description = "Mixed-effects location-scale model fitted by exact (quadrature) maximum likelihood, with condition-specific variance effects"
 
