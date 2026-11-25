@@ -123,6 +123,13 @@ Added on 18 November (FLAGS.md 27-29):
   intercept and slope estimated against the task-items' calibrated easiness, selection for the posterior variance
   of the bank proportion, a mixed rule that takes every second item at random, and the same coverage check.
   Results in `output/v21/online_cat_*.csv`.
+- **The same with a cross-fitted prior and a stopping rule on the learner's own bank**
+  (`R/06f_online_cat_crossfit.R`, added 24 November; `CAT_PRIOR` (`crossfit` or `insample`), `CAT_STOP_PSD`,
+  `NSIM_STOP`, `CAT_STOP_EVERY` and 06e's settings; about 2 h 20 min on 2 cores, resuming from
+  `output/v21/online_cat_cf_parts/`): each reference learner's slope is measured against an easiness fitted
+  without it (210 pair calibrations, cached in `output/v21/crossfit_eta/`), and tests also stop on the predictive
+  SD of the proportion met over the learner's own bank. Results in `output/v21/online_cat_cf_*.csv`; `FLAGS.md`
+  item 30.
 
 ## Files
 

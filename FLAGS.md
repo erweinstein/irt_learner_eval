@@ -479,3 +479,45 @@
     are 21 learners repeated, so differences of a few points in coverage are within noise.
     (f) Not done: a cross-fitted prior; the predictive-SD stopping rule for the testlet variant; and a bifactor
     version for the new learner (a general slope plus family-specific slopes).
+30. **The new learner as a new item, with a cross-fitted prior and a stopping rule on its own bank (24 November;
+    R/06f_online_cat_crossfit.R; output/v21/crossfit_eta/, output/v21/online_cat_cf_*.csv).** This does what 29(e)
+    and (f) left undone, as an addition: 06e and its output are unchanged. (i) Cross-fitted prior: for left-out
+    learner l, each reference learner r's (d, a) is the logistic regression of r's answers on an eta fitted
+    without both l and r (210 pair calibrations, about 15 minutes on 2 cores, cached). m0 and S0 are then formed
+    as in 06e. (ii) A second stopping rule: the SD of the posterior predictive distribution of the proportion met
+    over the learner's own bank (200 draws, checked every 3 items after one item per family) at most 0.035 or
+    0.025. The selection does not depend on the stopping rule, so each test records both rules' stopping points,
+    and the SD(A) rule's results compare directly with 29's. Same runs as 29 (3 per adaptive rule, 10 random);
+    about 2 h 20 min on 2 cores, in two calls (the first was stopped by its time limit and the second resumed
+    from the saved parts).
+    (a) The prior's slope mean falls from 0.79 to 0.64, the mean of the left-out learners' own full-bank slopes
+    (0.64; 29(e)). In the 2pl variant at SD(A) <= 0.04, online tests stop a little later (median 58 items against
+    49) and cover more often (97% against 90%), at the same width (13.2 against 13.6 points), with smaller errors
+    (mean absolute error 2.5 against 3.2 points; slope error 0.12 against 0.19). Mixed: 67 items, 97% (94% in 29);
+    random: 87 items, 95% (91%). At a fixed 100 items online coverage rises from 83% to 92%, which suggests that
+    29(b)'s loss of coverage there came mostly from the steep prior rather than from the dependence within
+    families.
+    (b) TabPFN improves but is not fixed. With the cross-fitted prior two of its three online tests ran on to 105
+    and 111 items and brought the slope down to 0.33-0.36 (one covered); the third stopped at 57 with the slope at
+    0.66 and missed (in 29 all three stopped at 43-46 and missed). Its mixed and random tests all covered again. The
+    mixed rule is still the safer default.
+    (c) The predictive-SD rule repairs the testlet variant. At 0.035 the online, mixed and random tests stopped
+    after a median 67, 70 and 82 items (all stopped), with intervals 13.5-13.6 points wide covering in 97%, 94% and
+    98%; at 0.025, 100, 112 and 130 items (94-100% stopped), 9.8-10.0 points, 95%, 98% and 97%. Under SD(A) the
+    same tests almost never stopped (10% of online tests, no mixed or random). So 29(d)'s diagnosis was right: the
+    learner's own bank is determined long before a new bank of new families is.
+    (d) In the 2pl variant the predictive-SD rule is no better than SD(A): at 0.035 online tests stop after 58 items
+    and cover 97%, as SD(A) <= 0.04 does; at 0.025 they stop after 91 items but cover only 89% (TabPFN 3 misses,
+    four other learners 1 each), against 97-98% for mixed and random. Without testlet effects the 2PL's
+    predictive SD is too small when the bank's families differ, the overconfidence of 29(b).
+    (e) Possible problems. The correlation of the mean signed error with the learner's slope did not fall: with
+    the cross-fitted prior it is -0.29 for online tests at SD(A) <= 0.04 (-0.18 in 29) and -0.42 under the
+    predictive-SD rule, though the errors themselves are smaller; with 21 learners these correlations are noisy
+    (an SE of roughly 0.2), and the testlet variant's are near zero (-0.07 to -0.14). The cross-fitted prior
+    still treats eta as known, and the slopes of r are measured against an eta from 19 learners while a left-out
+    learner's eta comes from 20, a small difference in noise. The predictive SD used for stopping comes from 200
+    draws, so a test can stop a few items early or late by Monte Carlo error (the recorded SD uses 400). The
+    random seed differs from 29's (20261124 against 20261119), so the 2pl results differ from 29's partly by
+    chance; the two runs are not paired.
+    (f) Not done: a bifactor version for the new learner (29(f)); and the same comparison on the full (not
+    leave-one-out) calibration.

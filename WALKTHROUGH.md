@@ -446,6 +446,24 @@ choice. Adding the family and condition effects improves coverage at fixed lengt
 fails, because $A$ averages those effects over new families. `FLAGS.md` item 29 has the details and the
 possible problems, including a prior that is too steep.
 
+**A cross-fitted prior and a stopping rule on the learner's own bank** (`R/06f_online_cat_crossfit.R`; added 24
+November; `FLAGS.md` item 30). Measuring each reference learner's slope against an easiness fitted without it
+lowers the prior's mean slope from 0.79 to 0.64, the left-out learners' own average. Without the family and
+condition effects, at the same stopping rule, coverage rises:
+
+| Rule (stop at SD of $A$ 0.04) | Median items | Covers, in-sample prior | Covers, cross-fitted prior | Width (points) |
+|---|---|---|---|---|
+| Online calibration | 58 | 90% | 97% | 13.2 |
+| Online calibration, every second item random | 67 | 94% | 97% | 13.1 |
+| Random | 87 | 91% | 95% | 13.0 |
+
+(Median items and widths are the cross-fitted runs'.) TabPFN's online tests now run longer and lower its slope in
+two of three tests, but only one covers; its mixed and random tests all cover. With the family and condition
+effects, stopping when the predictive SD of the proportion met over the learner's own bank reaches 0.035 ends
+every test, after a median 67 (online), 70 (mixed) and 82 (random) items, with 13.5-point intervals covering in
+97%, 94% and 98% of tests. That is the rule to use with testlet effects; without them the same rule at 0.025
+covered only 89% of online tests.
+
 ## 8. Adding a learner of your own
 
 1. Add a branch to `fit_predict()` in `R/00_learners.R` (or to `py/learners_py.py` for a Python
